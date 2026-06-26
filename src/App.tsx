@@ -289,8 +289,20 @@ function App() {
 
   // WhatsApp Messages & Helper
   const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
+    // Sanitize phone number - keep only digits
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+
+    // Ensure it's a valid length (10 or 12 digits)
+    if (cleanPhone.length < 10) {
+      alert('Invalid phone number for WhatsApp');
+      return;
+    }
+
+    // Add country code if not present (assume India)
+    const whatsappPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+
     const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+    const whatsappUrl = `https://wa.me/${whatsappPhone}?text=${encodedMessage}`;
     window.open(whatsappUrl, '_blank');
   };
 
@@ -434,8 +446,10 @@ function App() {
 
       // Update local state
       setMembers(members.map(m => m.id === id ? { ...m, paymentStatus: status } : m));
+      alert(`✅ Payment status updated to "${status}"`);
     } catch (error) {
       console.error('Error updating payment:', error);
+      alert('❌ Error updating payment status. Please try again.');
     }
   };
 
