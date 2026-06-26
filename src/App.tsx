@@ -516,97 +516,171 @@ function App() {
               </nav>
             </div>
 
-            {/* Main Content */}
+            {/* Main Content - TODAY'S ACTION ITEMS */}
             <div className="flex-1 p-8">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <div className="text-gray-600 text-sm font-semibold">Total Members</div>
-                  <div className="text-4xl font-bold text-blue-600 mt-2">{stats.totalMembers}</div>
+              {/* Quick Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                  <div className="text-gray-600 text-xs font-semibold">NEW ADMISSIONS</div>
+                  <div className="text-3xl font-bold text-green-600 mt-1">{members.filter(m => !m.membershipId).length}</div>
                 </div>
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <div className="text-gray-600 text-sm font-semibold">Verified</div>
-                  <div className="text-4xl font-bold text-green-600 mt-2">{stats.verifiedMembers}</div>
+                <div className="bg-orange-50 p-4 rounded-lg border-l-4 border-orange-500">
+                  <div className="text-gray-600 text-xs font-semibold">PENDING PAYMENTS</div>
+                  <div className="text-3xl font-bold text-orange-600 mt-1">{members.filter(m => m.paymentStatus === 'pending').length}</div>
                 </div>
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <div className="text-gray-600 text-sm font-semibold">Pending Payments</div>
-                  <div className="text-4xl font-bold text-orange-600 mt-2">{stats.pendingPayments}</div>
+                <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                  <div className="text-gray-600 text-xs font-semibold">ACTIVE MEMBERS</div>
+                  <div className="text-3xl font-bold text-blue-600 mt-1">{stats.verifiedMembers}</div>
                 </div>
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <div className="text-gray-600 text-sm font-semibold">Total Revenue</div>
-                  <div className="text-4xl font-bold text-purple-600 mt-2">₹{stats.totalRevenue}</div>
+                <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
+                  <div className="text-gray-600 text-xs font-semibold">TODAY'S REVENUE</div>
+                  <div className="text-3xl font-bold text-purple-600 mt-1">₹{stats.totalRevenue}</div>
                 </div>
               </div>
 
-              {/* Demo Data Button */}
-              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-8">
+              {/* Section 1: New Admissions Pending */}
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 className="text-xl font-bold text-green-700 mb-4">🆕 New Admissions Pending ({members.filter(m => !m.membershipId).length})</h2>
+                {members.filter(m => !m.membershipId).length === 0 ? (
+                  <p className="text-gray-500">No pending admissions</p>
+                ) : (
+                  <div className="space-y-4">
+                    {members.filter(m => !m.membershipId).map(member => (
+                      <div key={member.id} className="border-2 border-green-200 p-4 rounded-lg bg-green-50">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <p className="text-xs text-gray-600">Name</p>
+                            <p className="font-bold text-lg">{member.fullName}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Plan</p>
+                            <p className="font-bold">{member.plan}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Phone</p>
+                            <p className="font-bold">{member.phone}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Amount</p>
+                            <p className="font-bold text-green-600">₹{member.amount || 700}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const membershipId = Math.floor(10000 + Math.random() * 90000);
+                              setMembers(members.map(m => m.id === member.id ? { ...m, membershipId } : m));
+                              alert(`✅ Admission Accepted!\nMembership ID: ${membershipId}\n\nWelcome message sent to ${member.phone}`);
+                            }}
+                            className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
+                          >
+                            ✅ Accept & Send Welcome
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMembers(members.filter(m => m.id !== member.id));
+                              alert(`❌ Admission rejected for ${member.fullName}`);
+                            }}
+                            className="flex-1 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 text-sm"
+                          >
+                            ❌ Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Pending Payments */}
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 className="text-xl font-bold text-orange-700 mb-4">💰 Pending Payments to Verify ({members.filter(m => m.paymentStatus === 'pending').length})</h2>
+                {members.filter(m => m.paymentStatus === 'pending').length === 0 ? (
+                  <p className="text-gray-500">No pending payments</p>
+                ) : (
+                  <div className="space-y-4">
+                    {members.filter(m => m.paymentStatus === 'pending').map(member => (
+                      <div key={member.id} className="border-2 border-orange-200 p-4 rounded-lg bg-orange-50">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <p className="text-xs text-gray-600">Name</p>
+                            <p className="font-bold text-lg">{member.fullName}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Amount</p>
+                            <p className="font-bold text-orange-600">₹{member.amount || 700}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Method</p>
+                            <p className="font-bold capitalize">{member.paymentMethod || 'UPI'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">UTR/Ref ID</p>
+                            <p className="font-bold">{member.paymentUTR || 'Not provided'}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setMembers(members.map(m => m.id === member.id ? { ...m, paymentStatus: 'verified' } : m));
+                              alert(`✅ Payment Verified!\n\nThank you message sent to ${member.phone}\n"Thank you for your payment! Your membership is now active. Happy studying! 📚"`);
+                            }}
+                            className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
+                          >
+                            ✅ Verify & Send Thank You
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMembers(members.map(m => m.id === member.id ? { ...m, paymentStatus: 'rejected' } : m));
+                              alert(`❌ Payment Rejected\n\nRequest message sent to ${member.phone}`);
+                            }}
+                            className="flex-1 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 text-sm"
+                          >
+                            ❌ Reject & Request Again
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 3: Renewals Due Soon */}
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 className="text-xl font-bold text-blue-700 mb-4">🔄 Renewals Coming Up (Upcoming Members)</h2>
+                <p className="text-gray-500 text-center py-4">Send renewal reminders when memberships are expiring soon</p>
+              </div>
+
+              {/* Demo Data */}
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
                 {members.length === 0 ? (
                   <>
                     <p className="text-blue-900 font-semibold mb-4">
-                      📊 No members yet? Add demo data to test the dashboard!
+                      📊 No members yet? Add demo data to test!
                     </p>
                     <button
                       onClick={addDemoData}
                       className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
                     >
-                      ➕ Add 27 Demo Users
+                      ➕ Add 27 Demo Members
                     </button>
                   </>
                 ) : (
                   <>
                     <p className="text-blue-900 font-semibold mb-4">
-                      ⚠️ You have {members.length} members in the database
+                      ⚠️ Total members: {members.length}
                     </p>
                     <button
                       onClick={deleteAllDemoData}
                       className="w-full py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
                     >
-                      🗑️ Delete All Demo Data
+                      🗑️ Delete All
                     </button>
                   </>
                 )}
                 <p className="text-xs text-blue-700 mt-3">
-                  💡 Use demo data to test. Delete before going live!
+                  💡 Delete demo data before going live!
                 </p>
-              </div>
-
-              {/* Recent Members Table */}
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-2xl font-bold mb-4">Recent Members</h2>
-                {members.length === 0 ? (
-                  <p className="text-gray-500">No members yet</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-3 px-4">Name</th>
-                          <th className="text-left py-3 px-4">ID</th>
-                          <th className="text-left py-3 px-4">Phone</th>
-                          <th className="text-left py-3 px-4">Plan</th>
-                          <th className="text-left py-3 px-4">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {members.slice(-5).reverse().map(member => (
-                          <tr key={member.id} className="border-b hover:bg-gray-50">
-                            <td className="py-3 px-4">{member.fullName}</td>
-                            <td className="py-3 px-4 font-mono text-sm">{member.id}</td>
-                            <td className="py-3 px-4">{member.phone}</td>
-                            <td className="py-3 px-4">{member.plan}</td>
-                            <td className="py-3 px-4">
-                              <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                                member.paymentStatus === 'verified' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
-                              }`}>
-                                {member.paymentStatus}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </div>
             </div>
           </div>
