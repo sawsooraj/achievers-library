@@ -40,9 +40,12 @@ function App() {
     emergencyContactName: '',
     emergencyContactPhone: '',
     referralSource: '',
+    temporaryAddress: '',
+    permanentAddress: '',
   };
 
   const [formData, setFormData] = useState(initialFormData);
+  const [isSamePermanentAddress, setIsSamePermanentAddress] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('');
   const [selectedDayType, setSelectedDayType] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -2333,18 +2336,120 @@ function App() {
     );
   }
 
-  // STEP 2: EMERGENCY CONTACT & REFERRAL
+  // STEP 2: ADDRESS
   if (step === 2) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h1 className="text-3xl font-bold">Emergency Contact & Source</h1>
-              <span className="text-blue-600 font-bold">Step 2/6</span>
+              <h1 className="text-3xl font-bold">Address Information</h1>
+              <span className="text-blue-600 font-bold">Step 2/7</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '33%' }}></div>
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '28%' }}></div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+            <h2 className="text-2xl font-bold mb-6">Address Details</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block font-semibold mb-2">Temporary Address <span className="text-red-600">*</span></label>
+                <textarea
+                  name="temporaryAddress"
+                  value={formData.temporaryAddress}
+                  onChange={handleInputChange}
+                  placeholder="Enter your temporary address (Street, City, State, Postal Code)"
+                  rows={3}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                />
+              </div>
+
+              <div className="border-t pt-4">
+                <label className="flex items-center gap-3 cursor-pointer mb-4">
+                  <input
+                    type="checkbox"
+                    checked={isSamePermanentAddress}
+                    onChange={(e) => {
+                      setIsSamePermanentAddress(e.target.checked);
+                      if (e.target.checked) {
+                        setFormData({
+                          ...formData,
+                          permanentAddress: formData.temporaryAddress,
+                        });
+                      }
+                    }}
+                    className="w-5 h-5 cursor-pointer"
+                  />
+                  <span className="font-semibold">Permanent address is same as temporary address</span>
+                </label>
+              </div>
+
+              {!isSamePermanentAddress && (
+                <div>
+                  <label className="block font-semibold mb-2">Permanent Address <span className="text-red-600">*</span></label>
+                  <textarea
+                    name="permanentAddress"
+                    value={formData.permanentAddress}
+                    onChange={handleInputChange}
+                    placeholder="Enter your permanent address (Street, City, State, Postal Code)"
+                    rows={3}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                  />
+                </div>
+              )}
+
+              {isSamePermanentAddress && (
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <p className="text-sm text-gray-600 mb-2">Permanent Address (Auto-filled)</p>
+                  <p className="font-semibold text-gray-800 whitespace-pre-wrap">{formData.permanentAddress}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-4 mt-8">
+              <button
+                onClick={() => navigate('/admission/step-1')}
+                className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={() => {
+                  if (!formData.temporaryAddress.trim()) {
+                    alert('Please enter your temporary address');
+                    return;
+                  }
+                  if (!isSamePermanentAddress && !formData.permanentAddress.trim()) {
+                    alert('Please enter your permanent address');
+                    return;
+                  }
+                  navigate('/admission/step-3');
+                }}
+                className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // STEP 3: EMERGENCY CONTACT & REFERRAL
+  if (step === 3) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h1 className="text-3xl font-bold">Emergency Contact & Source</h1>
+              <span className="text-blue-600 font-bold">Step 3/7</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '43%' }}></div>
             </div>
           </div>
 
@@ -2397,7 +2502,7 @@ function App() {
             </div>
             <div className="flex gap-4 mt-8">
               <button
-                onClick={() => navigate('/admission/step-1')}
+                onClick={() => navigate('/admission/step-2')}
                 className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
               >
                 Back
@@ -2418,7 +2523,7 @@ function App() {
                     alert('Please enter a valid 10-digit emergency contact number');
                     return;
                   }
-                  navigate('/admission/step-3');
+                  navigate('/admission/step-4');
                 }}
                 className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
               >
@@ -2431,18 +2536,18 @@ function App() {
     );
   }
 
-  // STEP 3: MEMBERSHIP PLAN (was Step 2)
-  if (step === 3) {
+  // STEP 4: MEMBERSHIP PLAN
+  if (step === 4) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-3xl font-bold">Choose Membership Plan <span className="text-red-600">*</span></h1>
-              <span className="text-blue-600 font-bold">Step 3/6</span>
+              <span className="text-blue-600 font-bold">Step 4/7</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '33%' }}></div>
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '57%' }}></div>
             </div>
           </div>
 
@@ -2506,13 +2611,13 @@ function App() {
 
           <div className="flex gap-4">
             <button
-              onClick={() => navigate('/admission/step-1')}
+              onClick={() => navigate('/admission/step-3')}
               className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
             >
               Back
             </button>
             <button
-              onClick={() => navigate('/admission/step-4')}
+              onClick={() => navigate('/admission/step-5')}
               disabled={!selectedPlan || !selectedDayType}
               className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
@@ -2524,18 +2629,18 @@ function App() {
     );
   }
 
-  // STEP 4: SLOT & DATE SELECTION
-  if (step === 4) {
+  // STEP 5: SLOT & DATE SELECTION
+  if (step === 5) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-3xl font-bold">Select Slot & Date <span className="text-red-600">*</span></h1>
-              <span className="text-blue-600 font-bold">Step 4/6</span>
+              <span className="text-blue-600 font-bold">Step 5/7</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '50%' }}></div>
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '71%' }}></div>
             </div>
           </div>
 
@@ -2610,13 +2715,13 @@ function App() {
 
           <div className="flex gap-4 mt-6">
             <button
-              onClick={() => navigate('/admission/step-3')}
+              onClick={() => navigate('/admission/step-4')}
               className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
             >
               Back
             </button>
             <button
-              onClick={() => navigate('/admission/step-5')}
+              onClick={() => navigate('/admission/step-6')}
               disabled={!selectedSlot || !selectedDate}
               className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
@@ -2628,8 +2733,8 @@ function App() {
     );
   }
 
-  // STEP 5: PAYMENT
-  if (step === 5) {
+  // STEP 6: PAYMENT
+  if (step === 6) {
     const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
@@ -2637,10 +2742,10 @@ function App() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-3xl font-bold">Payment <span className="text-red-600">*</span></h1>
-              <span className="text-blue-600 font-bold">Step 5/5</span>
+              <span className="text-blue-600 font-bold">Step 6/7</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '83%' }}></div>
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '86%' }}></div>
             </div>
           </div>
 
@@ -2753,7 +2858,7 @@ function App() {
 
           <div className="flex gap-4 mt-6">
             <button
-              onClick={() => navigate('/admission/step-4')}
+              onClick={() => navigate('/admission/step-5')}
               className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
             >
               Back
@@ -2818,7 +2923,7 @@ function App() {
                   console.log('✅ Member saved. Success modal should show now.');
                   // Step 3: Navigate to thank you page
                   console.log('🎉 Navigating to thank you page');
-                  navigate('/admission/step-6');
+                  navigate('/admission/step-7');
                 } catch (error: any) {
                   console.error('❌ Submission error:', error);
                   alert('❌ Error during submission:\n' + (error?.message || String(error)));
@@ -2836,7 +2941,7 @@ function App() {
   }
 
   // THANK YOU PAGE (shown after successful submission)
-  if (step === 6) {
+  if (step === 7) {
     const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
     const bookingId = pdfBookingId || `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
@@ -2846,7 +2951,7 @@ function App() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-3xl font-bold text-green-600">🎉 Thank You!</h1>
-              <span className="text-green-600 font-bold">Success</span>
+              <span className="text-green-600 font-bold">Step 7/7 - Success</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div className="bg-green-600 h-2 rounded-full" style={{ width: '100%' }}></div>
