@@ -30,6 +30,7 @@ function App() {
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders'>('dashboard');
   const [members, setMembers] = useState<any[]>([]);
@@ -323,6 +324,69 @@ function App() {
     totalRevenue: members.reduce((sum, m) => sum + (m.amount || 0), 0),
   });
 
+  // ADMIN LOGIN PAGE
+  if (showAdminLogin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl"
+        >
+          <div className="text-center mb-8">
+            <div className="text-5xl mb-4">🔐</div>
+            <h1 className="text-3xl font-bold text-gray-800">Admin Access</h1>
+            <p className="text-gray-600 mt-2">The Achievers' Library</p>
+          </div>
+
+          <input
+            type="password"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                if (adminPassword === '1234') {
+                  setIsAdmin(true);
+                  setShowAdminLogin(false);
+                  setAdminPassword('');
+                } else {
+                  alert('Invalid password!');
+                  setAdminPassword('');
+                }
+              }
+            }}
+            placeholder="Enter admin password"
+            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-4 focus:border-blue-600 outline-none"
+            autoFocus
+          />
+
+          <button
+            onClick={() => {
+              if (adminPassword === '1234') {
+                setIsAdmin(true);
+                setShowAdminLogin(false);
+                setAdminPassword('');
+              } else {
+                alert('Invalid password!');
+                setAdminPassword('');
+              }
+            }}
+            className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg"
+          >
+            Login
+          </button>
+
+          <button
+            onClick={() => { setShowAdminLogin(false); setAdminPassword(''); }}
+            className="w-full mt-3 py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
+          >
+            Back
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   // ADMIN PAGES
   if (isAdmin && adminPage) {
     // Admin Dashboard - Main
@@ -378,7 +442,7 @@ function App() {
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
               <div className="text-2xl font-bold text-blue-600">📊 Admin Dashboard</div>
               <button
-                onClick={() => { setIsAdmin(false); setStep(0); }}
+                onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); setShowAdminLogin(false); setStep(0); }}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
               >
                 Logout
@@ -819,7 +883,7 @@ function App() {
                 Join Now
               </button>
               <button
-                onClick={() => setIsAdmin(true)}
+                onClick={() => setShowAdminLogin(true)}
                 className="px-4 py-2 text-gray-600 hover:text-blue-600 transition text-xs font-semibold"
                 title="Admin Panel"
               >
