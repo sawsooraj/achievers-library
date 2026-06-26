@@ -82,17 +82,17 @@ function App() {
 
     if (hash.startsWith('/admin/')) {
       const page = hash.replace('/admin/', '') as any;
-      if (!isAdmin) setIsAdmin(true);
-      if (adminPage !== page) setAdminPage(page || 'dashboard');
+      setIsAdmin(true);
+      setAdminPage(page || 'dashboard');
     } else if (hash.startsWith('/admission/step-')) {
       const stepNum = parseInt(hash.replace('/admission/step-', ''));
-      if (!isNaN(stepNum) && step !== stepNum) {
+      if (!isNaN(stepNum)) {
         setStep(stepNum);
       }
-    } else if (step !== 0) {
+    } else {
       setStep(0);
     }
-  }, [location.hash, step, isAdmin, adminPage]);
+  }, [location.hash]);
 
   // Load members from Firestore
   useEffect(() => {
