@@ -226,6 +226,61 @@ function App() {
     }
   };
 
+  const addDemoData = async () => {
+    const demoUsers = [
+      { fullName: 'Sooraj Kumar', email: 'sooraj@email.com', phone: '9876543210', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Priya Sharma', email: 'priya@email.com', phone: '9876543211', plan: 'Monthly Full-day', slot: '9am-9pm', amount: 1200, paymentStatus: 'verified' },
+      { fullName: 'Raj Patel', email: 'raj@email.com', phone: '9876543212', plan: 'Quarterly Half-day', slot: '3pm-9pm', amount: 1700, paymentStatus: 'pending' },
+      { fullName: 'Anjali Singh', email: 'anjali@email.com', phone: '9876543213', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Vikram Gupta', email: 'vikram@email.com', phone: '9876543214', plan: 'Quarterly Full-day', slot: '9am-9pm', amount: 3200, paymentStatus: 'verified' },
+      { fullName: 'Neha Desai', email: 'neha@email.com', phone: '9876543215', plan: 'Half-yearly Half-day', slot: '3pm-9pm', amount: 3200, paymentStatus: 'pending' },
+      { fullName: 'Arjun Reddy', email: 'arjun@email.com', phone: '9876543216', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Pooja Nair', email: 'pooja@email.com', phone: '9876543217', plan: 'Yearly Full-day', slot: '9am-9pm', amount: 10000, paymentStatus: 'verified' },
+      { fullName: 'Rohan Verma', email: 'rohan@email.com', phone: '9876543218', plan: 'Monthly Half-day', slot: '3pm-9pm', amount: 700, paymentStatus: 'pending' },
+      { fullName: 'Divya Kapoor', email: 'divya@email.com', phone: '9876543219', plan: 'Quarterly Half-day', slot: '9am-3pm', amount: 1700, paymentStatus: 'verified' },
+      { fullName: 'Aditya Joshi', email: 'aditya@email.com', phone: '9876543220', plan: 'Monthly Full-day', slot: '9am-9pm', amount: 1200, paymentStatus: 'verified' },
+      { fullName: 'Sneha Mishra', email: 'sneha@email.com', phone: '9876543221', plan: 'Half-yearly Full-day', slot: '3pm-9pm', amount: 6000, paymentStatus: 'pending' },
+      { fullName: 'Ravi Kumar', email: 'ravi@email.com', phone: '9876543222', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Sakshi Pandey', email: 'sakshi@email.com', phone: '9876543223', plan: 'Quarterly Full-day', slot: '9am-9pm', amount: 3200, paymentStatus: 'verified' },
+      { fullName: 'Manish Singh', email: 'manish@email.com', phone: '9876543224', plan: 'Monthly Half-day', slot: '3pm-9pm', amount: 700, paymentStatus: 'pending' },
+      { fullName: 'Isha Rao', email: 'isha@email.com', phone: '9876543225', plan: 'Monthly Full-day', slot: '9am-9pm', amount: 1200, paymentStatus: 'verified' },
+      { fullName: 'Harsh Malhotra', email: 'harsh@email.com', phone: '9876543226', plan: 'Yearly Half-day', slot: '9am-3pm', amount: 6000, paymentStatus: 'verified' },
+      { fullName: 'Megha Tiwari', email: 'megha@email.com', phone: '9876543227', plan: 'Quarterly Half-day', slot: '3pm-9pm', amount: 1700, paymentStatus: 'pending' },
+      { fullName: 'Nikhil Bhat', email: 'nikhil@email.com', phone: '9876543228', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Richa Sharma', email: 'richa@email.com', phone: '9876543229', plan: 'Half-yearly Half-day', slot: '9am-9pm', amount: 3200, paymentStatus: 'verified' },
+      { fullName: 'Deepak Negi', email: 'deepak@email.com', phone: '9876543230', plan: 'Monthly Full-day', slot: '3pm-9pm', amount: 1200, paymentStatus: 'pending' },
+      { fullName: 'Ananya Chatterjee', email: 'ananya@email.com', phone: '9876543231', plan: 'Quarterly Half-day', slot: '9am-3pm', amount: 1700, paymentStatus: 'verified' },
+      { fullName: 'Sameer Khan', email: 'sameer@email.com', phone: '9876543232', plan: 'Monthly Half-day', slot: '9am-9pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Tanya Mishra', email: 'tanya@email.com', phone: '9876543233', plan: 'Yearly Full-day', slot: '3pm-9pm', amount: 10000, paymentStatus: 'pending' },
+      { fullName: 'Vishal Kumar', email: 'vishal@email.com', phone: '9876543234', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Kavya Singh', email: 'kavya@email.com', phone: '9876543235', plan: 'Half-yearly Full-day', slot: '9am-9pm', amount: 6000, paymentStatus: 'verified' },
+      { fullName: 'Aryan Patel', email: 'aryan@email.com', phone: '9876543236', plan: 'Quarterly Half-day', slot: '3pm-9pm', amount: 1700, paymentStatus: 'pending' },
+      { fullName: 'Zara Desai', email: 'zara@email.com', phone: '9876543237', plan: 'Monthly Full-day', slot: '9am-3pm', amount: 1200, paymentStatus: 'verified' },
+    ];
+
+    try {
+      for (const user of demoUsers) {
+        await addDoc(collection(db, 'members'), {
+          id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+          ...user,
+          createdAt: new Date().toISOString(),
+          verified: user.paymentStatus === 'verified',
+        });
+      }
+      // Reload members
+      const querySnapshot = await getDocs(collection(db, 'members'));
+      const membersList = querySnapshot.docs.map(doc => ({
+        docId: doc.id,
+        ...doc.data()
+      }));
+      setMembers(membersList as any[]);
+      alert(`✅ Added ${demoUsers.length} demo users!`);
+    } catch (error) {
+      console.error('Error adding demo data:', error);
+      alert('❌ Error adding demo data');
+    }
+  };
+
   const updateMemberPayment = async (id: string, status: string) => {
     try {
       // Find the member with docId
@@ -381,6 +436,24 @@ function App() {
                   <div className="text-4xl font-bold text-purple-600 mt-2">₹{stats.totalRevenue}</div>
                 </div>
               </div>
+
+              {/* Demo Data Button */}
+              {members.length === 0 && (
+                <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-8">
+                  <p className="text-blue-900 font-semibold mb-4">
+                    📊 No members yet? Add demo data to test the dashboard!
+                  </p>
+                  <button
+                    onClick={addDemoData}
+                    className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
+                  >
+                    ➕ Add 27 Demo Users
+                  </button>
+                  <p className="text-xs text-blue-700 mt-3">
+                    ⚠️ Remember: Delete demo data before going live!
+                  </p>
+                </div>
+              )}
 
               {/* Recent Members Table */}
               <div className="bg-white rounded-lg shadow p-6">
