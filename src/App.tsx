@@ -214,7 +214,6 @@ function App() {
     const pwd = password.trim();
     if (pwd === 'admin123' || pwd === 'admin' || pwd === 'library') {
       setIsAdmin(true);
-      setShowAdminLogin(false);
       setAdminPassword('');
       setAdminPage('dashboard');
     } else {
@@ -341,7 +340,7 @@ function App() {
   });
 
   // ADMIN LOGIN PAGE (show when on /admin path but not yet logged in)
-  if (!isAdmin && location.pathname.includes('/admin')) {
+  if (!isAdmin && (location.pathname.includes('/admin') || location.hash.includes('/admin'))) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4">
         <motion.div
@@ -361,8 +360,7 @@ function App() {
             onChange={(e) => setAdminPassword(e.target.value)}
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
-                setIsAdmin(true);
-                setAdminPassword('');
+                handleAdminLogin(adminPassword);
               }
             }}
             placeholder="Enter admin password"
@@ -371,10 +369,7 @@ function App() {
           />
 
           <button
-            onClick={() => {
-              setIsAdmin(true);
-              setAdminPassword('');
-            }}
+            onClick={() => handleAdminLogin(adminPassword)}
             className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg"
           >
             Login
@@ -393,49 +388,6 @@ function App() {
 
   // ADMIN PAGES
   if (isAdmin && adminPage) {
-    // Admin Dashboard - Main
-    if ((adminPage as string) === 'dashboard') {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl"
-          >
-            <div className="text-center mb-8">
-              <div className="text-5xl mb-4">🔐</div>
-              <h1 className="text-3xl font-bold text-gray-800">Admin Access</h1>
-              <p className="text-gray-600 mt-2">The Achievers' Library</p>
-            </div>
-
-            <input
-              type="password"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin(adminPassword)}
-              placeholder="Enter admin password"
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-4 focus:border-blue-600 outline-none"
-              autoFocus
-            />
-
-            <button
-              onClick={() => handleAdminLogin(adminPassword)}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg"
-            >
-              Login
-            </button>
-
-            <button
-              onClick={() => setStep(0)}
-              className="w-full mt-3 py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
-            >
-              Back
-            </button>
-          </motion.div>
-        </div>
-      );
-    }
-
     // Admin Dashboard
     if (adminPage === 'dashboard') {
       const stats = getStats();
