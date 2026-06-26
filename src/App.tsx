@@ -1,9 +1,10 @@
 // @ts-nocheck
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { db } from './firebase';
 import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
 import './index.css';
@@ -45,6 +46,7 @@ function App() {
   const [editFormData, setEditFormData] = useState<any>(null);
   const [scannedBookingId, setScannedBookingId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [scannerActive, setScannerActive] = useState(false);
 
   // Sync URL with step/admin state
   useEffect(() => {
@@ -78,6 +80,39 @@ function App() {
     };
     loadMembers();
   }, []);
+
+  // QR Scanner initialization
+  useEffect(() => {
+    if (adminPage === 'scanner' && !scannedBookingId && !window.__qrScannerActive) {
+      try {
+        window.__qrScannerActive = true;
+        const qrScanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: 250 }, false);
+
+        qrScanner.render(
+          (decodedText) => {
+            // Extract booking ID from QR code
+            const bookingId = decodedText.includes(':') ? decodedText.split(':')[1] : decodedText;
+            setScannedBookingId(bookingId);
+            qrScanner.clear();
+            window.__qrScannerActive = false;
+          },
+          (error) => {
+            // Silently ignore scanning errors
+          }
+        );
+
+        return () => {
+          try {
+            qrScanner.clear();
+            window.__qrScannerActive = false;
+          } catch (err) {}
+        };
+      } catch (error) {
+        console.error('QR Scanner error:', error);
+        window.__qrScannerActive = false;
+      }
+    }
+  }, [adminPage, scannedBookingId]);
 
   const handleInputChange = (e: any) => {
     const { name, value } = e.target;
@@ -579,51 +614,90 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-              <button onClick={() => setAdminPage('dashboard')} className="text-2xl">←</button>
+              <button onClick={() => { setAdminPage('dashboard'); setScannedBookingId(''); setScannerActive(false); }} className="text-2xl">←</button>
               <div className="text-2xl font-bold text-blue-600">📱 QR Scanner</div>
             </div>
           </header>
 
           <div className="max-w-2xl mx-auto p-8">
             <div className="bg-white rounded-lg shadow p-8">
-              <p className="text-center text-gray-600 mb-6">Point camera at QR code to scan</p>
+              {!scannedBookingId ? (
+                <>
+                  <p className="text-center text-gray-600 mb-6 font-semibold">📸 Point camera at QR code</p>
 
-              <div id="qr-reader" className="w-full mb-6"></div>
+                  <div id="qr-reader" className="w-full mb-6" style={{minHeight: '300px'}}></div>
 
-              {scannedBookingId && (
-                <div className="bg-green-50 border border-green-200 p-6 rounded-lg">
-                  <div className="text-lg font-bold text-green-700 mb-4">✅ QR Scanned!</div>
-                  <div className="text-2xl font-mono font-bold text-blue-600 mb-6">{scannedBookingId}</div>
+                  <div className="bg-blue-50 p-4 rounded-lg mb-6 text-center">
+                    <p className="text-sm text-gray-700">
+                      💡 Tip: Make sure lighting is good and QR code is clearly visible
+                    </p>
+                  </div>
 
-                  {members.find(m => m.id === scannedBookingId) ? (
-                    <div className="space-y-4">
-                      {members.map(m => m.id === scannedBookingId && (
-                        <div key={m.id}>
-                          <p className="text-lg"><strong>Name:</strong> {m.fullName}</p>
-                          <p className="text-lg"><strong>Phone:</strong> {m.phone}</p>
-                          <p className="text-lg"><strong>Plan:</strong> {m.plan}</p>
-                          <p className="text-lg"><strong>Status:</strong> {m.paymentStatus}</p>
-                          <button
-                            onClick={() => { setScannedBookingId(''); setAdminPage('dashboard'); }}
-                            className="mt-4 w-full py-3 bg-blue-600 text-white font-bold rounded-lg"
-                          >
-                            ✓ Admission Verified
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-red-600 font-bold">Member not found</p>
-                  )}
+                  <button
+                    onClick={() => { setAdminPage('dashboard'); setScannerActive(false); }}
+                    className="w-full py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
+                  >
+                    Back to Dashboard
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-6">
+                  <div className="bg-green-50 border border-green-200 p-6 rounded-lg">
+                    <div className="text-lg font-bold text-green-700 mb-4">✅ QR Scanned Successfully!</div>
+                    <div className="text-3xl font-mono font-bold text-blue-600 mb-6 p-4 bg-blue-50 rounded text-center">{scannedBookingId}</div>
+
+                    {members.find(m => m.id === scannedBookingId) ? (
+                      <div className="bg-white p-6 rounded-lg space-y-3 border-2 border-green-200">
+                        {members.map(m => m.id === scannedBookingId && (
+                          <div key={m.id} className="space-y-3">
+                            <div className="flex justify-between border-b pb-2">
+                              <span className="font-semibold">Name:</span>
+                              <span>{m.fullName}</span>
+                            </div>
+                            <div className="flex justify-between border-b pb-2">
+                              <span className="font-semibold">Phone:</span>
+                              <span>{m.phone}</span>
+                            </div>
+                            <div className="flex justify-between border-b pb-2">
+                              <span className="font-semibold">Plan:</span>
+                              <span>{m.plan}</span>
+                            </div>
+                            <div className="flex justify-between border-b pb-2">
+                              <span className="font-semibold">Slot:</span>
+                              <span>{m.slot || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between pb-2">
+                              <span className="font-semibold">Status:</span>
+                              <span className={`px-2 py-1 rounded font-bold ${m.verified ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}`}>
+                                {m.verified ? '✓ Verified' : '⏳ Pending'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-red-50 border border-red-200 p-6 rounded-lg">
+                        <p className="text-red-600 font-bold text-center">❌ Member not found in database</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setScannedBookingId(''); setScannerActive(true); }}
+                      className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
+                    >
+                      📸 Scan Next
+                    </button>
+                    <button
+                      onClick={() => { setAdminPage('dashboard'); setScannedBookingId(''); setScannerActive(false); }}
+                      className="flex-1 py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
+                    >
+                      Back to Dashboard
+                    </button>
+                  </div>
                 </div>
               )}
-
-              <button
-                onClick={() => { setAdminPage('dashboard'); setScannedBookingId(''); }}
-                className="w-full mt-6 py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg"
-              >
-                Back to Dashboard
-              </button>
             </div>
           </div>
         </div>
