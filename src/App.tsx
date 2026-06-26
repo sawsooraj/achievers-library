@@ -2773,8 +2773,8 @@ function App() {
                     amount: amount,
                     paymentMethod: paymentMethod,
                   });
-                  resetForm();
                   navigate('/');
+                  setTimeout(() => resetForm(), 500);
                 }}
                 disabled={isSubmitting}
                 className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
