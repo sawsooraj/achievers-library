@@ -2561,15 +2561,27 @@ function App() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Name</span>
-                <span className="font-bold">{formData.fullName || 'N/A'}</span>
+                <span className="font-bold">{formData.fullName}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-gray-600">Email</span>
+                <span className="font-bold text-sm">{formData.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">WhatsApp</span>
+                <span className="font-bold">{formData.phone}</span>
+              </div>
+              <div className="flex justify-between border-t pt-3">
                 <span className="text-gray-600">Plan</span>
                 <span className="font-bold">{selectedPlan} - {selectedDayType}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Slot</span>
+                <span className="text-gray-600">Time Slot</span>
                 <span className="font-bold">{selectedSlot}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Start Date</span>
+                <span className="font-bold">{new Date(selectedDate).toDateString()}</span>
               </div>
               <div className="flex justify-between border-t pt-3">
                 <span className="font-bold">Amount Paid</span>
