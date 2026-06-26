@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { db } from './firebase';
+import { collection, addDoc, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
 import './index.css';
 
 const PLANS = {
@@ -34,16 +36,24 @@ function App() {
   const [scannedBookingId, setScannedBookingId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Load members from localStorage
+  // Load members from Firestore
   useEffect(() => {
-    const saved = localStorage.getItem('members');
-    if (saved) setMembers(JSON.parse(saved));
+    const loadMembers = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'members'));
+        const membersList = querySnapshot.docs.map(doc => ({
+          docId: doc.id,
+          ...doc.data()
+        }));
+        setMembers(membersList as any[]);
+      } catch (error) {
+        console.log('Loading members from localStorage as fallback...');
+        const saved = localStorage.getItem('members');
+        if (saved) setMembers(JSON.parse(saved));
+      }
+    };
+    loadMembers();
   }, []);
-
-  // Save members to localStorage
-  useEffect(() => {
-    localStorage.setItem('members', JSON.stringify(members));
-  }, [members]);
 
   const handleInputChange = (e: any) => {
     const { name, value } = e.target;
@@ -195,19 +205,42 @@ function App() {
     }
   };
 
-  const addMember = (memberData: any) => {
-    const newMember = {
-      id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      ...memberData,
-      createdAt: new Date().toISOString(),
-      paymentStatus: 'verified',
-      verified: true,
-    };
-    setMembers([...members, newMember]);
+  const addMember = async (memberData: any) => {
+    try {
+      const newMember = {
+        id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+        ...memberData,
+        createdAt: new Date().toISOString(),
+        paymentStatus: 'verified',
+        verified: true,
+      };
+
+      // Save to Firestore
+      await addDoc(collection(db, 'members'), newMember);
+
+      // Also update local state
+      setMembers([...members, newMember]);
+    } catch (error) {
+      console.error('Error adding member:', error);
+      alert('Error saving membership. Please try again.');
+    }
   };
 
-  const updateMemberPayment = (id: string, status: string) => {
-    setMembers(members.map(m => m.id === id ? { ...m, paymentStatus: status } : m));
+  const updateMemberPayment = async (id: string, status: string) => {
+    try {
+      // Find the member with docId
+      const member = members.find(m => m.id === id);
+      if (member?.docId) {
+        // Update in Firestore
+        const memberRef = doc(db, 'members', member.docId);
+        await updateDoc(memberRef, { paymentStatus: status });
+      }
+
+      // Update local state
+      setMembers(members.map(m => m.id === id ? { ...m, paymentStatus: status } : m));
+    } catch (error) {
+      console.error('Error updating payment:', error);
+    }
   };
 
   const getStats = () => ({
