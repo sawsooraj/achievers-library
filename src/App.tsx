@@ -1182,14 +1182,24 @@ function App() {
                     {/* 2. ADDRESS */}
                     <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
                       <h3 className="font-bold text-lg mb-3 text-green-900">🏠 Address</h3>
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         <div>
-                          <p className="text-xs text-gray-600 font-bold">Temporary Address</p>
-                          <p className="font-semibold whitespace-pre-wrap">{selectedMemberDetail.temporaryAddress || 'N/A'}</p>
+                          <p className="text-xs text-gray-600 font-bold mb-2">Temporary Address</p>
+                          <div className="space-y-1 bg-white p-3 rounded border border-green-200">
+                            <p className="text-xs"><span className="font-bold">Street:</span> {selectedMemberDetail.tempStreet || 'N/A'}</p>
+                            <p className="text-xs"><span className="font-bold">City:</span> {selectedMemberDetail.tempCity || 'N/A'}</p>
+                            <p className="text-xs"><span className="font-bold">State:</span> {selectedMemberDetail.tempState || 'N/A'}</p>
+                            <p className="text-xs"><span className="font-bold">Pin Code:</span> {selectedMemberDetail.tempPincode || 'N/A'}</p>
+                          </div>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-600 font-bold">Permanent Address</p>
-                          <p className="font-semibold whitespace-pre-wrap">{selectedMemberDetail.permanentAddress || 'N/A'}</p>
+                          <p className="text-xs text-gray-600 font-bold mb-2">Permanent Address</p>
+                          <div className="space-y-1 bg-white p-3 rounded border border-green-200">
+                            <p className="text-xs"><span className="font-bold">Street:</span> {selectedMemberDetail.permStreet || 'N/A'}</p>
+                            <p className="text-xs"><span className="font-bold">City:</span> {selectedMemberDetail.permCity || 'N/A'}</p>
+                            <p className="text-xs"><span className="font-bold">State:</span> {selectedMemberDetail.permState || 'N/A'}</p>
+                            <p className="text-xs"><span className="font-bold">Pin Code:</span> {selectedMemberDetail.permPincode || 'N/A'}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1351,7 +1361,7 @@ function App() {
                           pdf.line(15, yPos, pageWidth - 15, yPos);
                           yPos += 8;
 
-                          // All member details
+                          // All member details (structured address)
                           const details = [
                             ['Name', selectedMemberDetail.fullName],
                             ['Member ID', selectedMemberDetail.id],
@@ -1362,8 +1372,14 @@ function App() {
                             ['Current Class', selectedMemberDetail.currentClass || 'N/A'],
                             ['Target Exam', selectedMemberDetail.targetExam || 'N/A'],
                             ['School/College', selectedMemberDetail.schoolCollege || 'N/A'],
-                            ['Temporary Address', selectedMemberDetail.temporaryAddress || 'N/A'],
-                            ['Permanent Address', selectedMemberDetail.permanentAddress || 'N/A'],
+                            ['Temp Address - Street', selectedMemberDetail.tempStreet || 'N/A'],
+                            ['Temp Address - City', selectedMemberDetail.tempCity || 'N/A'],
+                            ['Temp Address - State', selectedMemberDetail.tempState || 'N/A'],
+                            ['Temp Address - Pin Code', selectedMemberDetail.tempPincode || 'N/A'],
+                            ['Perm Address - Street', selectedMemberDetail.permStreet || 'N/A'],
+                            ['Perm Address - City', selectedMemberDetail.permCity || 'N/A'],
+                            ['Perm Address - State', selectedMemberDetail.permState || 'N/A'],
+                            ['Perm Address - Pin Code', selectedMemberDetail.permPincode || 'N/A'],
                             ['Emergency Contact', selectedMemberDetail.emergencyContactName || 'N/A'],
                             ['Emergency Phone', selectedMemberDetail.emergencyContactPhone || 'N/A'],
                             ['Plan', selectedMemberDetail.plan || 'N/A'],
@@ -1464,17 +1480,45 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Address */}
+                    {/* Address - Structured */}
                     <div className="bg-green-50 p-3 rounded-lg border-l-4 border-green-500">
-                      <h3 className="font-bold text-green-900 mb-3">Address</h3>
-                      <div className="space-y-2">
-                        <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">Temporary Address</label>
-                          <textarea value={editFormData.temporaryAddress || ''} onChange={(e) => setEditFormData({...editFormData, temporaryAddress: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" rows={2} />
+                      <h3 className="font-bold text-green-900 mb-3">Temporary Address</h3>
+                      <div className="grid grid-cols-2 gap-2 mb-4">
+                        <div className="col-span-2">
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Street Address</label>
+                          <input type="text" value={editFormData.tempStreet || ''} onChange={(e) => setEditFormData({...editFormData, tempStreet: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">Permanent Address</label>
-                          <textarea value={editFormData.permanentAddress || ''} onChange={(e) => setEditFormData({...editFormData, permanentAddress: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" rows={2} />
+                          <label className="block text-sm font-bold text-gray-700 mb-1">City</label>
+                          <input type="text" value={editFormData.tempCity || ''} onChange={(e) => setEditFormData({...editFormData, tempCity: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">State</label>
+                          <input type="text" value={editFormData.tempState || ''} onChange={(e) => setEditFormData({...editFormData, tempState: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Pin Code</label>
+                          <input type="text" value={editFormData.tempPincode || ''} onChange={(e) => setEditFormData({...editFormData, tempPincode: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                      </div>
+
+                      <h3 className="font-bold text-green-900 mb-3">Permanent Address</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="col-span-2">
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Street Address</label>
+                          <input type="text" value={editFormData.permStreet || ''} onChange={(e) => setEditFormData({...editFormData, permStreet: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">City</label>
+                          <input type="text" value={editFormData.permCity || ''} onChange={(e) => setEditFormData({...editFormData, permCity: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">State</label>
+                          <input type="text" value={editFormData.permState || ''} onChange={(e) => setEditFormData({...editFormData, permState: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Pin Code</label>
+                          <input type="text" value={editFormData.permPincode || ''} onChange={(e) => setEditFormData({...editFormData, permPincode: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
                     </div>
@@ -3383,6 +3427,16 @@ function App() {
                     emergencyContactName: formData.emergencyContactName.trim(),
                     emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
                     referralSource: formData.referralSource.trim(),
+                    // Temporary Address - Structured
+                    tempStreet: formData.tempStreet.trim(),
+                    tempCity: formData.tempCity.trim(),
+                    tempState: formData.tempState.trim(),
+                    tempPincode: formData.tempPincode.trim(),
+                    // Permanent Address - Structured
+                    permStreet: formData.permStreet.trim(),
+                    permCity: formData.permCity.trim(),
+                    permState: formData.permState.trim(),
+                    permPincode: formData.permPincode.trim(),
                     plan: `${selectedPlan} ${selectedDayType}`,
                     slot: selectedSlot,
                     startDate: selectedDate,
