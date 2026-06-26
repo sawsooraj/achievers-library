@@ -407,7 +407,6 @@ function App() {
     setDebugError(null);
     try {
       const newMember = {
-        id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
         ...memberData,
         createdAt: new Date().toISOString(),
         paymentStatus: 'pending',
@@ -2796,6 +2795,7 @@ function App() {
                   // Step 2: Add member to database
                   console.log('💾 Saving member to database...');
                   await addMember({
+                    id: bookingId,
                     fullName: formData.fullName.trim(),
                     email: formData.email.trim().toLowerCase(),
                     phone: formData.phone.replace(/[^0-9]/g, ''),
@@ -2838,7 +2838,7 @@ function App() {
   // THANK YOU PAGE (shown after successful submission)
   if (step === 6) {
     const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
-    const bookingId = `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    const bookingId = pdfBookingId || `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white p-4">
@@ -2913,29 +2913,10 @@ function App() {
               <button
                 onClick={async () => {
                   generatePDF(bookingId, amount);
-                  await addMember({
-                    fullName: formData.fullName.trim(),
-                    email: formData.email.trim().toLowerCase(),
-                    phone: formData.phone.replace(/[^0-9]/g, ''),
-                    dateOfBirth: formData.dateOfBirth,
-                    gender: formData.gender,
-                    currentClass: formData.currentClass.trim(),
-                    targetExam: formData.targetExam.trim(),
-                    schoolCollege: formData.schoolCollege.trim(),
-                    emergencyContactName: formData.emergencyContactName.trim(),
-                    emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
-                    referralSource: formData.referralSource.trim(),
-                    plan: `${selectedPlan} ${selectedDayType}`,
-                    slot: selectedSlot,
-                    startDate: selectedDate,
-                    amount: amount,
-                    paymentMethod: paymentMethod,
-                  });
                 }}
-                disabled={isSubmitting}
-                className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
               >
-                {isSubmitting ? '⏳ Saving...' : '📥 Download Admission PDF'}
+                📥 Download Admission PDF
               </button>
               <button
                 onClick={() => {
