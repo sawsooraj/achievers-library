@@ -191,6 +191,22 @@ function App() {
       doc.text(`Email: ${formData.email || 'N/A'}`, 15, y);
       y += 5;
       doc.text(`Phone: ${formData.phone || 'N/A'}`, 15, y);
+      y += 5;
+      doc.text(`DOB: ${formData.dateOfBirth ? new Date(formData.dateOfBirth).toLocaleDateString('en-IN') : 'N/A'}`, 15, y);
+      y += 5;
+      doc.text(`Gender: ${formData.gender || 'N/A'}`, 15, y);
+      y += 5;
+      doc.text(`Class/Year: ${formData.currentClass || 'N/A'}`, 15, y);
+      y += 5;
+      doc.text(`Target Exam: ${formData.targetExam || 'N/A'}`, 15, y);
+      y += 5;
+      doc.text(`School/College: ${formData.schoolCollege || 'N/A'}`, 15, y);
+      y += 5;
+      doc.text(`Emergency Contact: ${formData.emergencyContactName || 'N/A'}`, 15, y);
+      y += 5;
+      doc.text(`Emergency Phone: ${formData.emergencyContactPhone || 'N/A'}`, 15, y);
+      y += 5;
+      doc.text(`Referred By: ${formData.referralSource || 'N/A'}`, 15, y);
 
       y += 10;
 
@@ -2122,6 +2138,14 @@ function App() {
                     alert('Please enter your WhatsApp number');
                     return;
                   }
+                  if (!formData.dateOfBirth) {
+                    alert('Please select your date of birth');
+                    return;
+                  }
+                  if (!formData.gender) {
+                    alert('Please select your gender');
+                    return;
+                  }
                   navigate('/admission/step-2');
                 }}
                 className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
@@ -2320,8 +2344,8 @@ function App() {
     );
   }
 
-  // STEP 3: SLOT & DATE SELECTION
-  if (step === 3) {
+  // STEP 4: SLOT & DATE SELECTION
+  if (step === 4) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
         <div className="max-w-2xl mx-auto">
@@ -2424,15 +2448,15 @@ function App() {
     );
   }
 
-  // STEP 4: PAYMENT
-  if (step === 4) {
+  // STEP 5: PAYMENT
+  if (step === 5) {
     const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h1 className="text-3xl font-bold">Payment</h1>
+              <h1 className="text-3xl font-bold">Payment <span className="text-red-600">*</span></h1>
               <span className="text-blue-600 font-bold">Step 5/6</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -2512,13 +2536,20 @@ function App() {
 
           <div className="flex gap-4 mt-6">
             <button
-              onClick={() => navigate('/admission/step-3')}
+              onClick={() => navigate('/admission/step-4')}
               className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
             >
               Back
             </button>
             <button
-              onClick={() => navigate('/admission/step-5')}
+              onClick={() => {
+                const agreeCheckbox = document.getElementById('agree') as HTMLInputElement;
+                if (!agreeCheckbox || !agreeCheckbox.checked) {
+                  alert('Please agree to Terms & Conditions');
+                  return;
+                }
+                navigate('/admission/step-6');
+              }}
               className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
             >
               Next →
@@ -2612,6 +2643,14 @@ function App() {
                     fullName: formData.fullName,
                     email: formData.email,
                     phone: formData.phone,
+                    dateOfBirth: formData.dateOfBirth,
+                    gender: formData.gender,
+                    currentClass: formData.currentClass,
+                    targetExam: formData.targetExam,
+                    schoolCollege: formData.schoolCollege,
+                    emergencyContactName: formData.emergencyContactName,
+                    emergencyContactPhone: formData.emergencyContactPhone,
+                    referralSource: formData.referralSource,
                     plan: `${selectedPlan} ${selectedDayType}`,
                     slot: selectedSlot,
                     startDate: selectedDate,
