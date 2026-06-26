@@ -1989,7 +1989,7 @@ function App() {
             <h2 className="text-2xl font-bold mb-6">Personal Information</h2>
             <div className="space-y-4">
               <div>
-                <label className="block font-semibold mb-2">Full Name</label>
+                <label className="block font-semibold mb-2">Full Name <span className="text-red-600">*</span></label>
                 <input
                   type="text"
                   name="fullName"
@@ -2000,7 +2000,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-2">Email</label>
+                <label className="block font-semibold mb-2">Email <span className="text-red-600">*</span></label>
                 <input
                   type="email"
                   name="email"
@@ -2011,7 +2011,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-2">WhatsApp Number</label>
+                <label className="block font-semibold mb-2">WhatsApp Number <span className="text-red-600">*</span></label>
                 <input
                   type="tel"
                   name="phone"
@@ -2109,7 +2109,21 @@ function App() {
                 Back
               </button>
               <button
-                onClick={() => setStep(2)}
+                onClick={() => {
+                  if (!formData.fullName.trim()) {
+                    alert('Please enter your full name');
+                    return;
+                  }
+                  if (!formData.email.trim()) {
+                    alert('Please enter your email');
+                    return;
+                  }
+                  if (!formData.phone.trim()) {
+                    alert('Please enter your WhatsApp number');
+                    return;
+                  }
+                  setStep(2);
+                }}
                 className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
               >
                 Next →
@@ -2140,7 +2154,7 @@ function App() {
             <h2 className="text-2xl font-bold mb-6">Contact & Source Information</h2>
             <div className="space-y-4">
               <div>
-                <label className="block font-semibold mb-2">Emergency Contact Name</label>
+                <label className="block font-semibold mb-2">Emergency Contact Name <span className="text-red-600">*</span></label>
                 <input
                   type="text"
                   name="emergencyContactName"
@@ -2151,7 +2165,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-2">Emergency Contact Phone</label>
+                <label className="block font-semibold mb-2">Emergency Contact Phone <span className="text-red-600">*</span></label>
                 <input
                   type="tel"
                   name="emergencyContactPhone"
@@ -2191,7 +2205,17 @@ function App() {
                 Back
               </button>
               <button
-                onClick={() => setStep(3)}
+                onClick={() => {
+                  if (!formData.emergencyContactName.trim()) {
+                    alert('Please enter emergency contact name');
+                    return;
+                  }
+                  if (!formData.emergencyContactPhone.trim()) {
+                    alert('Please enter emergency contact phone number');
+                    return;
+                  }
+                  setStep(3);
+                }}
                 className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
               >
                 Next →
