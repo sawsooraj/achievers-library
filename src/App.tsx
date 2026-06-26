@@ -453,7 +453,13 @@ function App() {
           {/* Admin Header */}
           <header className="sticky top-0 z-40 bg-white shadow">
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-              <div className="text-2xl font-bold text-blue-600">📊 Admin Dashboard</div>
+              <div className="flex items-center gap-3">
+                <div className="text-2xl font-bold text-blue-600">📊 Admin Dashboard</div>
+                <div className="flex items-center gap-1 bg-green-100 px-3 py-1 rounded-full">
+                  <span className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></span>
+                  <span className="text-xs font-bold text-green-700">Live v2.0</span>
+                </div>
+              </div>
               <button
                 onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); setStep(0); }}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
