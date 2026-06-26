@@ -50,6 +50,7 @@ function App() {
   const [paymentMethod, setPaymentMethod] = useState('upi');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingMember, setIsSavingMember] = useState(false);
+  const [debugError, setDebugError] = useState<string | null>(null);
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(() => {
@@ -395,6 +396,7 @@ function App() {
 
   const addMember = async (memberData: any) => {
     setIsSubmitting(true);
+    setDebugError(null);
     try {
       const newMember = {
         id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
@@ -402,15 +404,21 @@ function App() {
         createdAt: new Date().toISOString(),
         paymentStatus: 'verified',
         verified: true,
+        deleted: false,
       };
+
+      console.log('📝 Attempting to save:', newMember);
 
       // Save to Firestore
       const docRef = await addDoc(collection(db, 'members'), newMember);
-      console.log('Member saved to Firestore:', docRef.id);
-      alert('✅ Admission submitted successfully! Your ID: ' + newMember.id);
-    } catch (error) {
-      console.error('Error adding member:', error);
-      alert('❌ Error saving membership: ' + (error as any).message);
+      console.log('✅ Saved to Firestore ID:', docRef.id);
+      setDebugError(`✅ Saved: ${docRef.id}`);
+      alert('✅ Admission submitted! ID: ' + newMember.id);
+    } catch (error: any) {
+      const errorMsg = error?.message || String(error);
+      console.error('❌ Error:', errorMsg);
+      setDebugError(`❌ ERROR: ${errorMsg}`);
+      alert('❌ Error: ' + errorMsg);
     } finally {
       setIsSubmitting(false);
     }
