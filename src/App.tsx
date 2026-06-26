@@ -57,6 +57,7 @@ function App() {
   const [utrNumber, setUtrNumber] = useState('');
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [pdfBookingId, setPdfBookingId] = useState<string | null>(null);
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(() => {
@@ -974,6 +975,25 @@ function App() {
               />
             </div>
 
+            {selectedMembers.size > 0 && (
+              <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg flex justify-between items-center">
+                <span className="font-bold text-blue-700">{selectedMembers.size} member(s) selected</span>
+                <button
+                  onClick={() => {
+                    if (confirm(`🗑️ Delete ${selectedMembers.size} members? This cannot be undone!`)) {
+                      const newMembers = members.filter(m => !selectedMembers.has(m.id));
+                      setMembers(newMembers);
+                      setSelectedMembers(new Set());
+                      alert(`✅ ${selectedMembers.size} member(s) deleted`);
+                    }
+                  }}
+                  className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
+                >
+                  🗑️ Delete Selected
+                </button>
+              </div>
+            )}
+
             <div className="bg-white rounded-lg shadow overflow-hidden">
               {filtered.length === 0 ? (
                 <p className="p-6 text-gray-500">No members found</p>
@@ -981,6 +1001,24 @@ function App() {
                 <table className="w-full">
                   <thead className="bg-gray-100">
                     <tr>
+                      <th className="text-left py-4 px-6 w-10">
+                        <input
+                          type="checkbox"
+                          checked={filtered.length > 0 && filtered.every(m => selectedMembers.has(m.id))}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              const newSelected = new Set(selectedMembers);
+                              filtered.forEach(m => newSelected.add(m.id));
+                              setSelectedMembers(newSelected);
+                            } else {
+                              const newSelected = new Set(selectedMembers);
+                              filtered.forEach(m => newSelected.delete(m.id));
+                              setSelectedMembers(newSelected);
+                            }
+                          }}
+                          className="w-5 h-5 cursor-pointer"
+                        />
+                      </th>
                       <th className="text-left py-4 px-6">Name</th>
                       <th className="text-left py-4 px-6">ID</th>
                       <th className="text-left py-4 px-6">Email</th>
@@ -993,6 +1031,22 @@ function App() {
                   <tbody>
                     {filtered.map(member => (
                       <tr key={member.id} className="border-b hover:bg-gray-50">
+                        <td className="py-4 px-6 w-10">
+                          <input
+                            type="checkbox"
+                            checked={selectedMembers.has(member.id)}
+                            onChange={(e) => {
+                              const newSelected = new Set(selectedMembers);
+                              if (e.target.checked) {
+                                newSelected.add(member.id);
+                              } else {
+                                newSelected.delete(member.id);
+                              }
+                              setSelectedMembers(newSelected);
+                            }}
+                            className="w-5 h-5 cursor-pointer"
+                          />
+                        </td>
                         <td className="py-4 px-6">{member.fullName}</td>
                         <td className="py-4 px-6 font-mono text-sm">{member.id}</td>
                         <td className="py-4 px-6">{member.email}</td>
