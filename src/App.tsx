@@ -70,8 +70,14 @@ function App() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
-  const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats'>('dashboard');
-  const [previousAdminPage, setPreviousAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats'>('dashboard');
+  const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats' | 'users'>('dashboard');
+  const [previousAdminPage, setPreviousAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats' | 'users'>('dashboard');
+  const [users, setUsers] = useState<any[]>([
+    { id: 'admin1', name: 'Admin', role: 'admin', password: 'admin123', email: 'admin@library.com' },
+    { id: 'staff1', name: 'Staff Member', role: 'staff', password: 'staff123', email: 'staff@library.com' },
+  ]);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editUserPassword, setEditUserPassword] = useState('');
   const [members, setMembers] = useState<any[]>([]);
   const [selectedPaymentForReview, setSelectedPaymentForReview] = useState<any>(null);
   const [paymentReviewNotes, setPaymentReviewNotes] = useState('');
@@ -676,6 +682,14 @@ function App() {
                   }`}
                 >
                   📨 Reminders
+                </button>
+                <button
+                  onClick={() => goToAdminPage('users')}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-semibold ${
+                    adminPage === 'users' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  👤 Users & Passwords
                 </button>
               </nav>
             </div>
@@ -1752,6 +1766,132 @@ function App() {
               <button
                 onClick={() => setAdminPage('dashboard')}
                 className="w-full mt-6 py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Users Management Page
+    if ((adminPage as string) === 'users') {
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <header className="sticky top-0 z-40 bg-white shadow">
+            <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
+              <button onClick={() => goBackAdmin()} className="text-2xl">←</button>
+              <div className="text-2xl font-bold text-blue-600">👤 Users & Passwords</div>
+            </div>
+          </header>
+
+          <div className="max-w-4xl mx-auto p-8">
+            <div className="space-y-6">
+              {/* Users List */}
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-100 border-b">
+                      <tr>
+                        <th className="text-left px-6 py-3 font-bold">Name</th>
+                        <th className="text-left px-6 py-3 font-bold">Role</th>
+                        <th className="text-left px-6 py-3 font-bold">Email</th>
+                        <th className="text-left px-6 py-3 font-bold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.map(user => (
+                        <tr key={user.id} className="border-b hover:bg-gray-50">
+                          <td className="px-6 py-4 font-semibold">{user.name}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-3 py-1 rounded-full text-sm font-bold ${
+                              user.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {user.role === 'admin' ? '🔴 Admin' : '👤 Staff'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-gray-600">{user.email}</td>
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={() => {
+                                setEditingUser(user);
+                                setEditUserPassword('');
+                              }}
+                              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
+                            >
+                              🔐 Change Password
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Password Change Modal */}
+              {editingUser && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white rounded-lg p-8 max-w-md w-full">
+                    <h2 className="text-2xl font-bold mb-6">Change Password</h2>
+
+                    <div className="bg-gray-100 p-4 rounded-lg mb-6">
+                      <p className="text-sm text-gray-600">User</p>
+                      <p className="font-bold text-lg">{editingUser.name} ({editingUser.role})</p>
+                    </div>
+
+                    <div className="mb-6">
+                      <label className="block text-sm font-bold text-gray-700 mb-2">New Password</label>
+                      <input
+                        type="password"
+                        value={editUserPassword}
+                        onChange={(e) => setEditUserPassword(e.target.value)}
+                        placeholder="Enter new password"
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                      />
+                    </div>
+
+                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6">
+                      <p className="text-sm text-yellow-700">
+                        ⚠️ <strong>Note:</strong> Password will be changed immediately. Current password: <code className="bg-yellow-100 px-2 py-1">{editingUser.password}</code>
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          setEditingUser(null);
+                          setEditUserPassword('');
+                        }}
+                        className="flex-1 py-2 border-2 border-gray-300 text-gray-700 font-bold rounded hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (!editUserPassword.trim()) {
+                            alert('Please enter a new password');
+                            return;
+                          }
+                          // Update user password
+                          setUsers(users.map(u => u.id === editingUser.id ? {...u, password: editUserPassword} : u));
+                          alert(`✅ Password updated for ${editingUser.name}`);
+                          setEditingUser(null);
+                          setEditUserPassword('');
+                        }}
+                        className="flex-1 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700"
+                      >
+                        Update Password
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => setAdminPage('dashboard')}
+                className="w-full py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
               >
                 Back to Dashboard
               </button>
