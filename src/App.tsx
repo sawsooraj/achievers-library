@@ -1150,11 +1150,23 @@ function App() {
                       Cancel
                     </button>
                     <button
-                      onClick={() => {
-                        setMembers(members.map(m => m.id === editingMember.id ? editFormData : m));
-                        setEditingMember(null);
-                        setEditFormData(null);
-                        alert(`✅ ${editFormData.fullName} updated successfully!`);
+                      onClick={async () => {
+                        try {
+                          // Update Firestore if docId exists
+                          if (editingMember?.docId) {
+                            const memberRef = doc(db, 'members', editingMember.docId);
+                            await updateDoc(memberRef, editFormData);
+                          }
+
+                          // Update local state
+                          setMembers(members.map(m => m.id === editingMember.id ? editFormData : m));
+                          setEditingMember(null);
+                          setEditFormData(null);
+                          alert(`✅ ${editFormData.fullName} updated successfully!`);
+                        } catch (error) {
+                          console.error('Error updating member:', error);
+                          alert('❌ Error saving changes. Please try again.');
+                        }
                       }}
                       className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
                     >
@@ -1418,7 +1430,7 @@ function App() {
                       <h4 className="font-bold text-gray-900 mb-4">Seat Grid (23 total):</h4>
                       <div className="grid grid-cols-6 gap-2">
                         {Array.from({ length: slot.capacity }).map((_, seatNum) => {
-                          const member = slotMembers.find((m, idx) => idx === seatNum);
+                          const member = slotMembers[seatNum];
                           return (
                             <button
                               key={seatNum}
