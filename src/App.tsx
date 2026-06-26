@@ -55,6 +55,8 @@ function App() {
   const [successMemberId, setSuccessMemberId] = useState<string | null>(null);
   const [upiScreenshot, setUpiScreenshot] = useState<string | null>(null);
   const [utrNumber, setUtrNumber] = useState('');
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [pdfBookingId, setPdfBookingId] = useState<string | null>(null);
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(() => {
@@ -327,11 +329,12 @@ function App() {
       y += 4;
       doc.text('Phone: 9153144218', pageWidth / 2, y, { align: 'center' });
 
-      // Save
-      doc.save(`Admission_${bookingId}.pdf`);
+      // Return the PDF document instead of auto-saving
+      return doc;
     } catch (error) {
       console.error('PDF generation error:', error);
       alert('Error generating PDF. Please try again.');
+      return null;
     }
   };
 
@@ -2724,7 +2727,14 @@ function App() {
                 const bookingId = `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
                 const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
 
-                await generatePDF(bookingId, amount);
+                // Step 1: Generate PDF but don't download yet
+                const pdf = await generatePDF(bookingId, amount);
+                if (pdf) {
+                  setPdfDoc(pdf);
+                  setPdfBookingId(bookingId);
+                }
+
+                // Step 2: Add member to database
                 await addMember({
                   fullName: formData.fullName.trim(),
                   email: formData.email.trim().toLowerCase(),
@@ -2745,6 +2755,7 @@ function App() {
                   upiScreenshot: paymentMethod === 'upi' ? upiScreenshot : null,
                   utrNumber: paymentMethod === 'upi' ? utrNumber : null,
                 });
+                // Step 3: Success modal will show from addMember
               }}
               disabled={isSubmitting}
               className="flex-1 py-3 px-6 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2890,21 +2901,35 @@ function App() {
           </div>
 
           <p className="text-gray-600 mb-6">
-            ✅ Your data has been saved<br />
-            ✅ Admission PDF downloaded<br />
+            ✅ PDF generated<br />
+            ✅ Data saved to database<br />
+            ✅ Admin dashboard updated<br />
             ✅ Ready to start studying!
           </p>
 
-          <button
-            onClick={() => {
-              setShowSuccessModal(false);
-              navigate('/');
-              setTimeout(() => resetForm(), 500);
-            }}
-            className="w-full py-3 px-6 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition text-lg"
-          >
-            🏠 Back to Home
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                if (pdfDoc && pdfBookingId) {
+                  pdfDoc.save(`Admission_${pdfBookingId}.pdf`);
+                }
+              }}
+              className="w-full py-3 px-6 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition text-lg"
+            >
+              📥 Download PDF
+            </button>
+
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+                navigate('/');
+                setTimeout(() => resetForm(), 500);
+              }}
+              className="w-full py-3 px-6 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition text-lg"
+            >
+              🏠 Back to Home
+            </button>
+          </div>
         </div>
       </div>
     );
