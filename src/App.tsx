@@ -410,8 +410,8 @@ function App() {
         id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
         ...memberData,
         createdAt: new Date().toISOString(),
-        paymentStatus: 'verified',
-        verified: true,
+        paymentStatus: 'pending',
+        verified: false,
         deleted: false,
       };
 
