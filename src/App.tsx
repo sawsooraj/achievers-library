@@ -79,17 +79,22 @@ function App() {
   // Parse URL and sync to step/admin state (URL is source of truth)
   useEffect(() => {
     const hash = location.hash.replace('#', '') || '/';
+    console.log('URL Parser - hash:', hash, 'current step:', step);
 
     if (hash.startsWith('/admin/')) {
       const page = hash.replace('/admin/', '') as any;
+      console.log('Setting admin page:', page);
       setIsAdmin(true);
       setAdminPage(page || 'dashboard');
     } else if (hash.startsWith('/admission/step-')) {
       const stepNum = parseInt(hash.replace('/admission/step-', ''));
+      console.log('Parsing admission step:', stepNum);
       if (!isNaN(stepNum)) {
+        console.log('Setting step to:', stepNum);
         setStep(stepNum);
       }
     } else {
+      console.log('Setting step to 0 (home)');
       setStep(0);
     }
   }, [location.hash]);
@@ -1650,6 +1655,11 @@ function App() {
         </div>
       );
     }
+  }
+
+  // DEBUG: Show current state
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Current state - step:', step, 'isAdmin:', isAdmin, 'hash:', location.hash);
   }
 
   // HOME PAGE
