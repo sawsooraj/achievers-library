@@ -345,7 +345,7 @@ function App() {
             onChange={(e) => setAdminPassword(e.target.value)}
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
-                if (adminPassword === 'admin') {
+                if (adminPassword.trim().toLowerCase() === 'admin') {
                   setIsAdmin(true);
                   setShowAdminLogin(false);
                   setAdminPassword('');
