@@ -41,6 +41,8 @@ function App() {
   const [members, setMembers] = useState<any[]>([]);
   const [selectedPaymentForReview, setSelectedPaymentForReview] = useState<any>(null);
   const [paymentReviewNotes, setPaymentReviewNotes] = useState('');
+  const [editingMember, setEditingMember] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState<any>(null);
   const [scannedBookingId, setScannedBookingId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -668,6 +670,7 @@ function App() {
                       <th className="text-left py-4 px-6">Phone</th>
                       <th className="text-left py-4 px-6">Plan</th>
                       <th className="text-left py-4 px-6">Status</th>
+                      <th className="text-left py-4 px-6">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -685,6 +688,28 @@ function App() {
                             {member.verified ? 'Verified' : 'Pending'}
                           </span>
                         </td>
+                        <td className="py-4 px-6 flex gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingMember(member);
+                              setEditFormData({...member});
+                            }}
+                            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-semibold"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete ${member.fullName}? This cannot be undone!`)) {
+                                setMembers(members.filter(m => m.id !== member.id));
+                                alert(`✅ Member ${member.fullName} deleted`);
+                              }
+                            }}
+                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-semibold"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -698,6 +723,127 @@ function App() {
             >
               Back to Dashboard
             </button>
+
+            {/* Edit Member Modal */}
+            {editingMember && editFormData && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-screen overflow-y-auto">
+                  <h2 className="text-2xl font-bold mb-6">Edit Member: {editingMember.fullName}</h2>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
+                      <input
+                        type="text"
+                        value={editFormData.fullName || ''}
+                        onChange={(e) => setEditFormData({...editFormData, fullName: e.target.value})}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
+                      <input
+                        type="email"
+                        value={editFormData.email || ''}
+                        onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Phone</label>
+                      <input
+                        type="tel"
+                        value={editFormData.phone || ''}
+                        onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Plan</label>
+                      <select
+                        value={editFormData.plan || ''}
+                        onChange={(e) => setEditFormData({...editFormData, plan: e.target.value})}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                      >
+                        <option value="">Select a plan</option>
+                        <option value="Monthly Half-day">Monthly Half-day (₹600)</option>
+                        <option value="Monthly Full-day">Monthly Full-day (₹1100)</option>
+                        <option value="Quarterly Half-day">Quarterly Half-day (₹1600)</option>
+                        <option value="Quarterly Full-day">Quarterly Full-day (₹3100)</option>
+                        <option value="Half-yearly Half-day">Half-yearly Half-day (₹3100)</option>
+                        <option value="Half-yearly Full-day">Half-yearly Full-day (₹6000)</option>
+                        <option value="Yearly Half-day">Yearly Half-day (₹5900)</option>
+                        <option value="Yearly Full-day">Yearly Full-day (₹9900)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Time Slot</label>
+                      <select
+                        value={editFormData.slot || ''}
+                        onChange={(e) => setEditFormData({...editFormData, slot: e.target.value})}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                      >
+                        <option value="">Select a slot</option>
+                        <option value="9am-3pm">9am - 3pm</option>
+                        <option value="3pm-9pm">3pm - 9pm</option>
+                        <option value="9am-9pm">9am - 9pm (Full Day)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Payment Status</label>
+                      <select
+                        value={editFormData.paymentStatus || 'pending'}
+                        onChange={(e) => setEditFormData({...editFormData, paymentStatus: e.target.value})}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="verified">Verified</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Notes</label>
+                      <textarea
+                        value={editFormData.notes || ''}
+                        onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
+                        placeholder="Add any admin notes about this member..."
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => {
+                        setEditingMember(null);
+                        setEditFormData(null);
+                      }}
+                      className="flex-1 py-3 border-2 border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMembers(members.map(m => m.id === editingMember.id ? editFormData : m));
+                        setEditingMember(null);
+                        setEditFormData(null);
+                        alert(`✅ ${editFormData.fullName} updated successfully!`);
+                      }}
+                      className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       );
