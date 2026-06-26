@@ -36,6 +36,7 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState('');
   const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders'>('dashboard');
   const [members, setMembers] = useState<any[]>([]);
   const [scannedBookingId, setScannedBookingId] = useState('');
@@ -219,10 +220,12 @@ function App() {
     if (pwd === 'admin123' || pwd === 'admin' || pwd === 'library') {
       setIsAdmin(true);
       setAdminPassword('');
+      setAdminError('');
       setAdminPage('dashboard');
       setShowAdminLogin(false);
     } else {
-      alert('❌ Invalid password!\n\n✅ Try one of these:\n• admin123\n• admin\n• library');
+      setAdminError('Invalid password!');
+      setTimeout(() => setAdminError(''), 3000);
     }
   };
 
@@ -368,20 +371,30 @@ function App() {
                 handleAdminLogin(adminPassword);
               }
             }}
-            placeholder="Enter admin password"
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-4 focus:border-blue-600 outline-none"
+            placeholder="Enter password"
+            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-4 focus:border-blue-600 outline-none focus:ring-2 focus:ring-blue-200"
             autoFocus
           />
 
+          {adminError && (
+            <div className="mb-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
+              <p className="font-semibold">❌ {adminError}</p>
+              <p className="text-sm mt-1">Try: admin123, admin, or library</p>
+            </div>
+          )}
+
           <button
             onClick={() => handleAdminLogin(adminPassword)}
-            className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg"
+            className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg transition"
           >
             Login
           </button>
 
           <button
-            onClick={() => setShowAdminLogin(false)}
+            onClick={() => {
+              setShowAdminLogin(false);
+              setAdminError('');
+            }}
             className="w-full mt-3 py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
           >
             Back
