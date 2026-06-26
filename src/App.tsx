@@ -53,6 +53,8 @@ function App() {
   const [debugError, setDebugError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMemberId, setSuccessMemberId] = useState<string | null>(null);
+  const [upiScreenshot, setUpiScreenshot] = useState<string | null>(null);
+  const [utrNumber, setUtrNumber] = useState('');
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(() => {
@@ -2579,10 +2581,10 @@ function App() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-3xl font-bold">Payment <span className="text-red-600">*</span></h1>
-              <span className="text-blue-600 font-bold">Step 5/6</span>
+              <span className="text-blue-600 font-bold">Step 5/5</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '66%' }}></div>
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '83%' }}></div>
             </div>
           </div>
 
@@ -2648,6 +2650,43 @@ function App() {
               </div>
             </div>
 
+            {paymentMethod === 'upi' && (
+              <div className="space-y-4 border-t pt-6">
+                <h3 className="font-bold text-lg">UPI Payment Details <span className="text-red-600">*</span></h3>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Upload Payment Screenshot</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setUpiScreenshot(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                  />
+                  {upiScreenshot && <p className="text-sm text-green-600 mt-2">✅ Screenshot uploaded</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">UTR / Transaction ID</label>
+                  <input
+                    type="text"
+                    placeholder="Enter your UPI transaction ID"
+                    value={utrNumber}
+                    onChange={(e) => setUtrNumber(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center">
               <input type="checkbox" id="agree" className="mr-2" />
               <label htmlFor="agree" className="text-sm">
@@ -2664,17 +2703,53 @@ function App() {
               Back
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 const agreeCheckbox = document.getElementById('agree') as HTMLInputElement;
                 if (!agreeCheckbox || !agreeCheckbox.checked) {
                   alert('Please agree to Terms & Conditions');
                   return;
                 }
-                navigate('/admission/step-6');
+
+                if (paymentMethod === 'upi') {
+                  if (!upiScreenshot) {
+                    alert('Please upload UPI payment screenshot');
+                    return;
+                  }
+                  if (!utrNumber.trim()) {
+                    alert('Please enter UTR/Transaction ID');
+                    return;
+                  }
+                }
+
+                const bookingId = `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+                const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
+
+                generatePDF(bookingId, amount);
+                await addMember({
+                  fullName: formData.fullName.trim(),
+                  email: formData.email.trim().toLowerCase(),
+                  phone: formData.phone.replace(/[^0-9]/g, ''),
+                  dateOfBirth: formData.dateOfBirth,
+                  gender: formData.gender,
+                  currentClass: formData.currentClass.trim(),
+                  targetExam: formData.targetExam.trim(),
+                  schoolCollege: formData.schoolCollege.trim(),
+                  emergencyContactName: formData.emergencyContactName.trim(),
+                  emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
+                  referralSource: formData.referralSource.trim(),
+                  plan: `${selectedPlan} ${selectedDayType}`,
+                  slot: selectedSlot,
+                  startDate: selectedDate,
+                  amount: amount,
+                  paymentMethod: paymentMethod,
+                  upiScreenshot: paymentMethod === 'upi' ? upiScreenshot : null,
+                  utrNumber: paymentMethod === 'upi' ? utrNumber : null,
+                });
               }}
-              className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
+              disabled={isSubmitting}
+              className="flex-1 py-3 px-6 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next →
+              {isSubmitting ? '⏳ Submitting...' : '✅ Submit'}
             </button>
           </div>
         </div>
@@ -2682,7 +2757,7 @@ function App() {
     );
   }
 
-  // STEP 5: CONFIRMATION
+  // THANK YOU PAGE (shown after successful submission)
   if (step === 6) {
     const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
     const bookingId = `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -2692,8 +2767,8 @@ function App() {
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h1 className="text-3xl font-bold text-green-600">✅ Admission Confirmed!</h1>
-              <span className="text-green-600 font-bold">Step 6/6</span>
+              <h1 className="text-3xl font-bold text-green-600">🎉 Thank You!</h1>
+              <span className="text-green-600 font-bold">Success</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div className="bg-green-600 h-2 rounded-full" style={{ width: '100%' }}></div>
@@ -2702,9 +2777,9 @@ function App() {
 
           <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 space-y-6">
             <div className="bg-green-50 border border-green-200 p-6 rounded-lg text-center">
-              <div className="text-5xl mb-4">🎉</div>
-              <div className="font-bold text-2xl text-green-700">Your Admission is Confirmed!</div>
-              <div className="text-gray-600 mt-2">Your membership is now active</div>
+              <div className="text-6xl mb-4">🎊</div>
+              <div className="font-bold text-3xl text-green-700">Congratulations!</div>
+              <div className="text-gray-600 mt-2 text-lg">Your admission has been successfully submitted</div>
             </div>
 
             <div className="border border-gray-200 p-6 rounded-lg space-y-3">
