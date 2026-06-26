@@ -1080,6 +1080,12 @@ function App() {
                           <button
                             onClick={() => {
                               if (confirm(`Delete ${member.fullName}? This cannot be undone!`)) {
+                                // Soft delete in Firestore
+                                updateDoc(doc(db, 'members', member.docId), {
+                                  deleted: true,
+                                  deletedAt: new Date().toISOString(),
+                                  deletedBy: 'admin'
+                                });
                                 setMembers(members.filter(m => m.id !== member.id));
                                 alert(`✅ Member ${member.fullName} deleted`);
                               }
@@ -1292,10 +1298,12 @@ function App() {
                           if (editingMember?.docId) {
                             const memberRef = doc(db, 'members', editingMember.docId);
                             await updateDoc(memberRef, editFormData);
+                            console.log('✅ Firestore updated with:', editFormData);
                           }
 
-                          // Update local state
-                          setMembers(members.map(m => m.id === editingMember.id ? editFormData : m));
+                          // Update local state with merged data to preserve all fields
+                          const updatedMember = {...editingMember, ...editFormData};
+                          setMembers(members.map(m => m.docId === editingMember.docId ? updatedMember : m));
                           setEditingMember(null);
                           setEditFormData(null);
                           alert(`✅ ${editFormData.fullName} updated successfully!`);
