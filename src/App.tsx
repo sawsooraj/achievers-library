@@ -838,15 +838,13 @@ function App() {
               >
                 Join
               </button>
-              <button
-                onClick={() => {
-                  window.location.href = '/#/admin/dashboard';
-                }}
-                className="px-3 py-2 text-gray-600 hover:text-blue-600 transition text-lg md:text-xs font-semibold"
+              <a
+                href="/#/admin/dashboard"
+                className="px-3 py-2 text-gray-600 hover:text-blue-600 transition text-lg md:text-xs font-semibold cursor-pointer"
                 title="Admin Panel"
               >
                 🔐
-              </button>
+              </a>
             </nav>
           </div>
         </header>
