@@ -1124,12 +1124,16 @@ function App() {
               ← Back
             </button>
 
-            {/* Member Detail Modal */}
+            {/* Member Detail Modal - COMPLETE PROFILE */}
             {selectedMemberDetail && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-lg p-8 max-w-md w-full">
-                  <div className="flex items-start justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">{selectedMemberDetail.fullName}</h2>
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                <div className="bg-white rounded-lg p-8 max-w-2xl w-full my-8">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-6 pb-4 border-b-2">
+                    <div>
+                      <h2 className="text-3xl font-bold text-gray-900">{selectedMemberDetail.fullName}</h2>
+                      <p className="text-sm text-gray-500 mt-1">ID: {selectedMemberDetail.id}</p>
+                    </div>
                     <button
                       onClick={() => setSelectedMemberDetail(null)}
                       className="text-3xl text-gray-400 hover:text-gray-600"
@@ -1138,60 +1142,170 @@ function App() {
                     </button>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      <p className="text-sm text-gray-600">Member ID</p>
-                      <p className="text-lg font-bold text-gray-900">{selectedMemberDetail.id}</p>
-                    </div>
-
-                    {selectedMemberDetail.membershipId && (
-                      <div className="p-4 bg-green-50 rounded-lg">
-                        <p className="text-sm text-gray-600">Membership ID</p>
-                        <p className="text-lg font-bold text-green-700">{selectedMemberDetail.membershipId}</p>
+                  {/* Tabs-like sections */}
+                  <div className="space-y-6 max-h-96 overflow-y-auto pr-4">
+                    {/* 1. PERSONAL INFORMATION */}
+                    <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                      <h3 className="font-bold text-lg mb-3 text-blue-900">📋 Personal Information</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-600">Full Name</p>
+                          <p className="font-semibold">{selectedMemberDetail.fullName}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Date of Birth</p>
+                          <p className="font-semibold">{selectedMemberDetail.dateOfBirth ? new Date(selectedMemberDetail.dateOfBirth).toLocaleDateString('en-IN') : 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Gender</p>
+                          <p className="font-semibold">{selectedMemberDetail.gender || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Email</p>
+                          <p className="font-semibold text-sm break-all">{selectedMemberDetail.email}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Phone</p>
+                          <p className="font-semibold">{selectedMemberDetail.phone}</p>
+                        </div>
                       </div>
-                    )}
-
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">Email</p>
-                      <p className="text-gray-900 font-medium break-all">{selectedMemberDetail.email}</p>
                     </div>
 
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">Phone</p>
-                      <p className="text-gray-900 font-medium">{selectedMemberDetail.phone}</p>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">Plan</p>
-                      <p className="text-gray-900 font-medium">{selectedMemberDetail.plan}</p>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">Time Slot</p>
-                      <p className="text-gray-900 font-medium">{selectedMemberDetail.slot}</p>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">Payment Status</p>
-                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
-                        selectedMemberDetail.paymentStatus === 'verified'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {selectedMemberDetail.paymentStatus === 'verified' ? '✅ Verified' : '⏳ Pending'}
-                      </span>
-                    </div>
-
-                    {selectedMemberDetail.amount && (
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">Amount Paid</p>
-                        <p className="text-lg font-bold text-gray-900">₹{selectedMemberDetail.amount}</p>
+                    {/* 2. ADDRESS */}
+                    <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                      <h3 className="font-bold text-lg mb-3 text-green-900">🏠 Address</h3>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-xs text-gray-600 font-bold">Temporary Address</p>
+                          <p className="font-semibold whitespace-pre-wrap">{selectedMemberDetail.temporaryAddress || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600 font-bold">Permanent Address</p>
+                          <p className="font-semibold whitespace-pre-wrap">{selectedMemberDetail.permanentAddress || 'N/A'}</p>
+                        </div>
                       </div>
-                    )}
+                    </div>
 
-                    {/* QR Code Section */}
-                    <div className="p-4 bg-blue-50 rounded-lg text-center">
-                      <p className="text-sm text-gray-600 mb-3">Member QR Code</p>
+                    {/* 3. EDUCATION */}
+                    <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
+                      <h3 className="font-bold text-lg mb-3 text-purple-900">🎓 Education</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-600">Current Class</p>
+                          <p className="font-semibold">{selectedMemberDetail.currentClass || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">School/College</p>
+                          <p className="font-semibold">{selectedMemberDetail.schoolCollege || 'N/A'}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-gray-600">Target Exam</p>
+                          <p className="font-semibold">{selectedMemberDetail.targetExam || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. EMERGENCY CONTACT */}
+                    <div className="bg-red-50 p-4 rounded-lg border-l-4 border-red-500">
+                      <h3 className="font-bold text-lg mb-3 text-red-900">🆘 Emergency Contact</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                          <p className="text-xs text-gray-600">Contact Person</p>
+                          <p className="font-semibold">{selectedMemberDetail.emergencyContactName || 'N/A'}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-gray-600">Phone</p>
+                          <p className="font-semibold">{selectedMemberDetail.emergencyContactPhone || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5. MEMBERSHIP DETAILS */}
+                    <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
+                      <h3 className="font-bold text-lg mb-3 text-yellow-900">🎫 Membership Details</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-600">Member ID</p>
+                          <p className="font-semibold text-blue-600">{selectedMemberDetail.id}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Plan</p>
+                          <p className="font-semibold">{selectedMemberDetail.plan || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Time Slot</p>
+                          <p className="font-semibold">{selectedMemberDetail.slot || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Start Date</p>
+                          <p className="font-semibold">{selectedMemberDetail.startDate ? new Date(selectedMemberDetail.startDate).toLocaleDateString('en-IN') : 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 6. PAYMENT DETAILS */}
+                    <div className="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-500">
+                      <h3 className="font-bold text-lg mb-3 text-indigo-900">💳 Payment Details</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-600">Amount</p>
+                          <p className="font-bold text-lg text-green-600">₹{selectedMemberDetail.amount || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Method</p>
+                          <p className="font-semibold">{selectedMemberDetail.paymentMethod === 'upi' ? '📱 UPI' : '💵 Cash'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Status</p>
+                          <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${
+                            selectedMemberDetail.paymentStatus === 'verified'
+                              ? 'bg-green-200 text-green-800'
+                              : 'bg-yellow-200 text-yellow-800'
+                          }`}>
+                            {selectedMemberDetail.paymentStatus === 'verified' ? '✅ Verified' : '⏳ Pending'}
+                          </span>
+                        </div>
+                        {selectedMemberDetail.utrNumber && (
+                          <div>
+                            <p className="text-xs text-gray-600">UTR/Ref ID</p>
+                            <p className="font-semibold">{selectedMemberDetail.utrNumber}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Payment Screenshot */}
+                      {selectedMemberDetail.upiScreenshot && (
+                        <div className="mt-3 pt-3 border-t">
+                          <p className="text-xs text-gray-600 font-bold mb-2">💸 Payment Proof</p>
+                          <img
+                            src={selectedMemberDetail.upiScreenshot}
+                            alt="Payment proof"
+                            className="w-full max-h-48 object-cover rounded border-2 border-indigo-200 cursor-pointer hover:scale-105 transition"
+                            onClick={() => window.open(selectedMemberDetail.upiScreenshot, '_blank')}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Click to enlarge</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 7. REFERRAL & OTHER */}
+                    <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-400">
+                      <h3 className="font-bold text-lg mb-3">ℹ️ Additional Info</h3>
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-xs text-gray-600">Referral Source</p>
+                          <p className="font-semibold">{selectedMemberDetail.referralSource || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Joined On</p>
+                          <p className="font-semibold">{selectedMemberDetail.createdAt ? new Date(selectedMemberDetail.createdAt).toLocaleDateString('en-IN') : 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 8. QR CODE */}
+                    <div className="bg-blue-50 p-4 rounded-lg text-center border-l-4 border-blue-500">
+                      <p className="text-sm font-bold text-blue-900 mb-3">📱 Member QR Code</p>
                       <div className="bg-white p-3 rounded inline-block border-2 border-blue-200">
                         <div className="w-32 h-32 bg-gradient-to-br from-blue-100 to-blue-200 rounded flex items-center justify-center">
                           <div className="text-center">
@@ -1204,76 +1318,85 @@ function App() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3 mt-6">
+                  <div className="flex gap-2 mt-6 pt-4 border-t sticky bottom-0 bg-white">
                     <button
                       onClick={async () => {
                         try {
                           const pdf = new jsPDF();
                           const pageWidth = pdf.internal.pageSize.getWidth();
                           const pageHeight = pdf.internal.pageSize.getHeight();
+                          let yPos = 15;
 
                           // Header
-                          pdf.setFontSize(24);
+                          pdf.setFontSize(20);
                           pdf.setTextColor(59, 130, 246);
-                          pdf.text('📚 Achievers Library', pageWidth / 2, 20, { align: 'center' });
+                          pdf.text('📚 Achievers Library', pageWidth / 2, yPos, { align: 'center' });
+                          yPos += 10;
 
-                          // Title
-                          pdf.setFontSize(16);
+                          pdf.setFontSize(14);
                           pdf.setTextColor(31, 41, 55);
-                          pdf.text('Member Details', pageWidth / 2, 35, { align: 'center' });
+                          pdf.text('Member Profile & Details', pageWidth / 2, yPos, { align: 'center' });
+                          yPos += 15;
 
-                          // Member Info
-                          let yPos = 50;
-                          pdf.setFontSize(12);
+                          pdf.setFontSize(11);
+                          pdf.setLineWidth(0.5);
+                          pdf.line(15, yPos, pageWidth - 15, yPos);
+                          yPos += 8;
 
-                          const fields = [
-                            { label: 'Name', value: selectedMemberDetail.fullName },
-                            { label: 'Member ID', value: selectedMemberDetail.id },
-                            { label: 'Email', value: selectedMemberDetail.email },
-                            { label: 'Phone', value: selectedMemberDetail.phone },
-                            { label: 'Plan', value: selectedMemberDetail.plan },
-                            { label: 'Time Slot', value: selectedMemberDetail.slot },
-                            { label: 'Payment Status', value: selectedMemberDetail.paymentStatus || 'Pending' },
-                            { label: 'Amount Paid', value: `₹${selectedMemberDetail.amount || 0}` },
+                          // All member details
+                          const details = [
+                            ['Name', selectedMemberDetail.fullName],
+                            ['Member ID', selectedMemberDetail.id],
+                            ['Email', selectedMemberDetail.email],
+                            ['Phone', selectedMemberDetail.phone],
+                            ['DOB', selectedMemberDetail.dateOfBirth ? new Date(selectedMemberDetail.dateOfBirth).toLocaleDateString('en-IN') : 'N/A'],
+                            ['Gender', selectedMemberDetail.gender || 'N/A'],
+                            ['Current Class', selectedMemberDetail.currentClass || 'N/A'],
+                            ['Target Exam', selectedMemberDetail.targetExam || 'N/A'],
+                            ['School/College', selectedMemberDetail.schoolCollege || 'N/A'],
+                            ['Temporary Address', selectedMemberDetail.temporaryAddress || 'N/A'],
+                            ['Permanent Address', selectedMemberDetail.permanentAddress || 'N/A'],
+                            ['Emergency Contact', selectedMemberDetail.emergencyContactName || 'N/A'],
+                            ['Emergency Phone', selectedMemberDetail.emergencyContactPhone || 'N/A'],
+                            ['Plan', selectedMemberDetail.plan || 'N/A'],
+                            ['Time Slot', selectedMemberDetail.slot || 'N/A'],
+                            ['Start Date', selectedMemberDetail.startDate ? new Date(selectedMemberDetail.startDate).toLocaleDateString('en-IN') : 'N/A'],
+                            ['Amount Paid', `₹${selectedMemberDetail.amount || 0}`],
+                            ['Payment Method', selectedMemberDetail.paymentMethod === 'upi' ? 'UPI' : 'Cash'],
+                            ['Payment Status', selectedMemberDetail.paymentStatus || 'Pending'],
+                            ['UTR/Reference', selectedMemberDetail.utrNumber || 'N/A'],
+                            ['Referral Source', selectedMemberDetail.referralSource || 'N/A'],
                           ];
 
-                          fields.forEach(field => {
-                            pdf.setTextColor(107, 114, 128);
-                            pdf.setFont(undefined, 'normal');
-                            pdf.text(`${field.label}:`, 20, yPos);
-
-                            pdf.setTextColor(31, 41, 55);
+                          details.forEach(([label, value]) => {
                             pdf.setFont(undefined, 'bold');
-                            pdf.text(String(field.value), 80, yPos);
+                            pdf.setTextColor(31, 41, 55);
+                            pdf.text(`${label}:`, 15, yPos);
 
-                            yPos += 8;
+                            pdf.setFont(undefined, 'normal');
+                            pdf.setTextColor(107, 114, 128);
+                            const text = String(value);
+                            const splitText = pdf.splitTextToSize(text, pageWidth - 80);
+                            pdf.text(splitText, 70, yPos);
+                            yPos += 5 + (splitText.length - 1) * 4;
+
+                            if (yPos > pageHeight - 30) {
+                              pdf.addPage();
+                              yPos = 15;
+                            }
                           });
 
-                          // QR Code Section
+                          yPos += 5;
+                          pdf.setLineWidth(0.5);
+                          pdf.line(15, yPos, pageWidth - 15, yPos);
                           yPos += 10;
-                          pdf.setTextColor(31, 41, 55);
-                          pdf.setFont(undefined, 'bold');
-                          pdf.setFontSize(14);
-                          pdf.text('Member QR Code', pageWidth / 2, yPos, { align: 'center' });
 
-                          yPos += 15;
-                          // Draw QR code placeholder
-                          pdf.setDrawColor(59, 130, 246);
-                          pdf.rect(pageWidth / 2 - 25, yPos, 50, 50);
-                          pdf.setFontSize(10);
-                          pdf.setTextColor(107, 114, 128);
-                          pdf.text('QR Code', pageWidth / 2, yPos + 20, { align: 'center' });
-                          pdf.text(selectedMemberDetail.id, pageWidth / 2, yPos + 30, { align: 'center' });
-
-                          // Footer
-                          yPos = pageHeight - 20;
                           pdf.setFontSize(10);
                           pdf.setTextColor(156, 163, 175);
-                          pdf.text('Generated on: ' + new Date().toLocaleDateString('en-IN'), pageWidth / 2, yPos, { align: 'center' });
+                          pdf.text('Generated on: ' + new Date().toLocaleDateString('en-IN') + ' ' + new Date().toLocaleTimeString('en-IN'), pageWidth / 2, pageHeight - 10, { align: 'center' });
 
-                          // Download
-                          pdf.save(`${selectedMemberDetail.fullName}_Details.pdf`);
-                          alert(`✅ PDF downloaded for ${selectedMemberDetail.fullName}`);
+                          pdf.save(`${selectedMemberDetail.fullName}_Complete_Profile.pdf`);
+                          alert(`✅ PDF downloaded successfully`);
                         } catch (error) {
                           console.error('Error generating PDF:', error);
                           alert('❌ Error downloading PDF');
