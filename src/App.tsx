@@ -39,6 +39,8 @@ function App() {
   const [adminError, setAdminError] = useState('');
   const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders'>('dashboard');
   const [members, setMembers] = useState<any[]>([]);
+  const [selectedPaymentForReview, setSelectedPaymentForReview] = useState<any>(null);
+  const [paymentReviewNotes, setPaymentReviewNotes] = useState('');
   const [scannedBookingId, setScannedBookingId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -741,14 +743,28 @@ function App() {
                           <p className="text-gray-600">Plan</p>
                           <p className="text-lg font-bold">{member.plan}</p>
                         </div>
+                        <div>
+                          <p className="text-gray-600">Payment Method</p>
+                          <p className="text-lg font-bold">{member.paymentMethod || 'UPI'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-600">UTR/Ref ID</p>
+                          <p className="text-lg font-bold text-gray-700">{member.paymentUTR || 'Not provided'}</p>
+                        </div>
                       </div>
 
                       <div className="flex gap-3">
                         <button
-                          onClick={() => updateMemberPayment(member.id, 'verified')}
+                          onClick={() => setSelectedPaymentForReview(member)}
+                          className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
+                        >
+                          👁️ Review Proof
+                        </button>
+                        <button
+                          onClick={() => { updateMemberPayment(member.id, 'verified'); setPaymentReviewNotes(''); }}
                           className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700"
                         >
-                          ✓ Verify Payment
+                          ✓ Verify
                         </button>
                         <button
                           onClick={() => updateMemberPayment(member.id, 'rejected')}
@@ -770,6 +786,118 @@ function App() {
               Back to Dashboard
             </button>
           </div>
+
+          {/* Payment Review Modal */}
+          {selectedPaymentForReview && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-screen overflow-y-auto">
+                <h2 className="text-2xl font-bold mb-6">Payment Review</h2>
+
+                {/* Payment Details */}
+                <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-gray-600 text-sm">Member Name</p>
+                      <p className="text-lg font-bold">{selectedPaymentForReview.fullName}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 text-sm">Amount</p>
+                      <p className="text-lg font-bold text-blue-600">₹{selectedPaymentForReview.amount}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 text-sm">Phone</p>
+                      <p className="text-lg font-bold">{selectedPaymentForReview.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 text-sm">Plan</p>
+                      <p className="text-lg font-bold">{selectedPaymentForReview.plan}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 text-sm">Payment Method</p>
+                      <p className="text-lg font-bold">{selectedPaymentForReview.paymentMethod || 'UPI'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600 text-sm">Email</p>
+                      <p className="text-lg font-bold">{selectedPaymentForReview.email}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Proof Section */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-bold mb-3">Payment Proof</h3>
+                  <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    {selectedPaymentForReview.paymentProof ? (
+                      <img src={selectedPaymentForReview.paymentProof} alt="Payment proof" className="max-h-60 mx-auto rounded" />
+                    ) : (
+                      <div className="text-gray-600">
+                        <p className="text-4xl mb-2">📸</p>
+                        <p>Payment screenshot/screenshot not uploaded yet</p>
+                        <p className="text-sm mt-2">Member should upload during signup</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Transaction Details */}
+                <div className="mb-6">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">UTR / Transaction ID / Reference</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., UPI REF 123456789 or Bank Ref: ABC123"
+                    defaultValue={selectedPaymentForReview.paymentUTR || ''}
+                    onChange={(e) => setSelectedPaymentForReview({...selectedPaymentForReview, paymentUTR: e.target.value})}
+                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                  />
+                </div>
+
+                {/* Admin Notes */}
+                <div className="mb-6">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Admin Notes</label>
+                  <textarea
+                    placeholder="Add any notes about this payment..."
+                    value={paymentReviewNotes}
+                    onChange={(e) => setPaymentReviewNotes(e.target.value)}
+                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                    rows={3}
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setSelectedPaymentForReview(null);
+                      setPaymentReviewNotes('');
+                    }}
+                    className="flex-1 py-3 border-2 border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateMemberPayment(selectedPaymentForReview.id, 'rejected');
+                      setSelectedPaymentForReview(null);
+                      setPaymentReviewNotes('');
+                    }}
+                    className="flex-1 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
+                  >
+                    ✗ Reject Payment
+                  </button>
+                  <button
+                    onClick={() => {
+                      updateMemberPayment(selectedPaymentForReview.id, 'verified');
+                      setSelectedPaymentForReview(null);
+                      setPaymentReviewNotes('');
+                    }}
+                    className="flex-1 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700"
+                  >
+                    ✓ Verify Payment
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
