@@ -1063,7 +1063,14 @@ function App() {
                             className="w-5 h-5 cursor-pointer"
                           />
                         </td>
-                        <td className="py-4 px-6">{member.fullName}</td>
+                        <td className="py-4 px-6">
+                          <button
+                            onClick={() => setSelectedMemberDetail(member)}
+                            className="font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          >
+                            {member.fullName}
+                          </button>
+                        </td>
                         <td className="py-4 px-6 font-mono text-sm">{member.id}</td>
                         <td className="py-4 px-6">{member.email}</td>
                         <td className="py-4 px-6">{member.phone}</td>
@@ -1076,12 +1083,6 @@ function App() {
                           </span>
                         </td>
                         <td className="py-4 px-6 flex gap-2">
-                          <button
-                            onClick={() => setSelectedMemberDetail(member)}
-                            className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm font-semibold"
-                          >
-                            👁️ View
-                          </button>
                           <button
                             onClick={() => {
                               setEditingMember(member);
@@ -1187,14 +1188,108 @@ function App() {
                         <p className="text-lg font-bold text-gray-900">₹{selectedMemberDetail.amount}</p>
                       </div>
                     )}
+
+                    {/* QR Code Section */}
+                    <div className="p-4 bg-blue-50 rounded-lg text-center">
+                      <p className="text-sm text-gray-600 mb-3">Member QR Code</p>
+                      <div className="bg-white p-3 rounded inline-block border-2 border-blue-200">
+                        <div className="w-32 h-32 bg-gradient-to-br from-blue-100 to-blue-200 rounded flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-3xl">📱</div>
+                            <div className="text-xs text-gray-600 mt-1">QR Code</div>
+                            <div className="text-xs font-bold">{selectedMemberDetail.id}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <button
-                    onClick={() => setSelectedMemberDetail(null)}
-                    className="w-full mt-6 px-4 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
-                  >
-                    Close
-                  </button>
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const pdf = new jsPDF();
+                          const pageWidth = pdf.internal.pageSize.getWidth();
+                          const pageHeight = pdf.internal.pageSize.getHeight();
+
+                          // Header
+                          pdf.setFontSize(24);
+                          pdf.setTextColor(59, 130, 246);
+                          pdf.text('📚 Achievers Library', pageWidth / 2, 20, { align: 'center' });
+
+                          // Title
+                          pdf.setFontSize(16);
+                          pdf.setTextColor(31, 41, 55);
+                          pdf.text('Member Details', pageWidth / 2, 35, { align: 'center' });
+
+                          // Member Info
+                          let yPos = 50;
+                          pdf.setFontSize(12);
+
+                          const fields = [
+                            { label: 'Name', value: selectedMemberDetail.fullName },
+                            { label: 'Member ID', value: selectedMemberDetail.id },
+                            { label: 'Email', value: selectedMemberDetail.email },
+                            { label: 'Phone', value: selectedMemberDetail.phone },
+                            { label: 'Plan', value: selectedMemberDetail.plan },
+                            { label: 'Time Slot', value: selectedMemberDetail.slot },
+                            { label: 'Payment Status', value: selectedMemberDetail.paymentStatus || 'Pending' },
+                            { label: 'Amount Paid', value: `₹${selectedMemberDetail.amount || 0}` },
+                          ];
+
+                          fields.forEach(field => {
+                            pdf.setTextColor(107, 114, 128);
+                            pdf.setFont(undefined, 'normal');
+                            pdf.text(`${field.label}:`, 20, yPos);
+
+                            pdf.setTextColor(31, 41, 55);
+                            pdf.setFont(undefined, 'bold');
+                            pdf.text(String(field.value), 80, yPos);
+
+                            yPos += 8;
+                          });
+
+                          // QR Code Section
+                          yPos += 10;
+                          pdf.setTextColor(31, 41, 55);
+                          pdf.setFont(undefined, 'bold');
+                          pdf.setFontSize(14);
+                          pdf.text('Member QR Code', pageWidth / 2, yPos, { align: 'center' });
+
+                          yPos += 15;
+                          // Draw QR code placeholder
+                          pdf.setDrawColor(59, 130, 246);
+                          pdf.rect(pageWidth / 2 - 25, yPos, 50, 50);
+                          pdf.setFontSize(10);
+                          pdf.setTextColor(107, 114, 128);
+                          pdf.text('QR Code', pageWidth / 2, yPos + 20, { align: 'center' });
+                          pdf.text(selectedMemberDetail.id, pageWidth / 2, yPos + 30, { align: 'center' });
+
+                          // Footer
+                          yPos = pageHeight - 20;
+                          pdf.setFontSize(10);
+                          pdf.setTextColor(156, 163, 175);
+                          pdf.text('Generated on: ' + new Date().toLocaleDateString('en-IN'), pageWidth / 2, yPos, { align: 'center' });
+
+                          // Download
+                          pdf.save(`${selectedMemberDetail.fullName}_Details.pdf`);
+                          alert(`✅ PDF downloaded for ${selectedMemberDetail.fullName}`);
+                        } catch (error) {
+                          console.error('Error generating PDF:', error);
+                          alert('❌ Error downloading PDF');
+                        }
+                      }}
+                      className="flex-1 px-4 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700"
+                    >
+                      📥 Download PDF
+                    </button>
+                    <button
+                      onClick={() => setSelectedMemberDetail(null)}
+                      className="flex-1 px-4 py-3 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
