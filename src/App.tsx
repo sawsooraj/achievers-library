@@ -7,6 +7,12 @@ import QRCode from 'qrcode';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { db } from './firebase';
 import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
+
+// Configuration
+const ADMIN_PASSWORDS = ['admin123', 'admin', 'library'];
+const TOTAL_SEATS = 69;
+const SEATS_PER_SLOT = 23;
+const SLOTS = ['9am-3pm', '3pm-9pm', '9am-9pm'] as const;
 import './index.css';
 
 const PLANS = {
@@ -22,7 +28,7 @@ function App() {
 
   // Admission Flow States
   const [step, setStep] = useState(0);
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     fullName: '',
     email: '',
     phone: '',
@@ -34,12 +40,16 @@ function App() {
     emergencyContactName: '',
     emergencyContactPhone: '',
     referralSource: '',
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormData);
   const [selectedPlan, setSelectedPlan] = useState('');
   const [selectedDayType, setSelectedDayType] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedSlot, setSelectedSlot] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('upi');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingMember, setIsSavingMember] = useState(false);
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(() => {
@@ -313,6 +323,16 @@ function App() {
     renewal: (date: string) => `Your membership expires on ${date}. Renew now to continue studying! 📚`,
   };
 
+  // Form reset function
+  const resetForm = () => {
+    setFormData(initialFormData);
+    setSelectedPlan('');
+    setSelectedDayType('');
+    setSelectedSlot('');
+    setPaymentMethod('upi');
+    setSelectedDate(new Date().toISOString().split('T')[0]);
+  };
+
   // Admin Navigation Functions
   const goToAdminPage = (page: 'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats') => {
     if (page !== adminPage) {
@@ -328,7 +348,7 @@ function App() {
   // Admin Functions
   const handleAdminLogin = (password: string) => {
     const pwd = password.trim();
-    if (pwd === 'admin123' || pwd === 'admin' || pwd === 'library') {
+    if (ADMIN_PASSWORDS.includes(pwd)) {
       setIsAdmin(true);
       setAdminPassword('');
       setAdminError('');
@@ -341,6 +361,7 @@ function App() {
   };
 
   const addMember = async (memberData: any) => {
+    setIsSubmitting(true);
     try {
       const newMember = {
         id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
@@ -358,39 +379,46 @@ function App() {
     } catch (error) {
       console.error('Error adding member:', error);
       alert('Error saving membership. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const addDemoData = async () => {
+    // First delete all existing data
+    const existingDocs = await getDocs(collection(db, 'members'));
+    for (const docSnapshot of existingDocs.docs) {
+      await updateDoc(doc(db, 'members', docSnapshot.id), { deleted: true });
+    }
+
     const demoUsers = [
-      { fullName: 'Sooraj Kumar', email: 'sooraj@email.com', phone: '9876543210', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
-      { fullName: 'Priya Sharma', email: 'priya@email.com', phone: '9876543211', plan: 'Monthly Full-day', slot: '9am-9pm', amount: 1200, paymentStatus: 'verified' },
-      { fullName: 'Raj Patel', email: 'raj@email.com', phone: '9876543212', plan: 'Quarterly Half-day', slot: '3pm-9pm', amount: 1700, paymentStatus: 'pending' },
-      { fullName: 'Anjali Singh', email: 'anjali@email.com', phone: '9876543213', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
-      { fullName: 'Vikram Gupta', email: 'vikram@email.com', phone: '9876543214', plan: 'Quarterly Full-day', slot: '9am-9pm', amount: 3200, paymentStatus: 'verified' },
-      { fullName: 'Neha Desai', email: 'neha@email.com', phone: '9876543215', plan: 'Half-yearly Half-day', slot: '3pm-9pm', amount: 3200, paymentStatus: 'pending' },
-      { fullName: 'Arjun Reddy', email: 'arjun@email.com', phone: '9876543216', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
-      { fullName: 'Pooja Nair', email: 'pooja@email.com', phone: '9876543217', plan: 'Yearly Full-day', slot: '9am-9pm', amount: 10000, paymentStatus: 'verified' },
-      { fullName: 'Rohan Verma', email: 'rohan@email.com', phone: '9876543218', plan: 'Monthly Half-day', slot: '3pm-9pm', amount: 700, paymentStatus: 'pending' },
-      { fullName: 'Divya Kapoor', email: 'divya@email.com', phone: '9876543219', plan: 'Quarterly Half-day', slot: '9am-3pm', amount: 1700, paymentStatus: 'verified' },
-      { fullName: 'Aditya Joshi', email: 'aditya@email.com', phone: '9876543220', plan: 'Monthly Full-day', slot: '9am-9pm', amount: 1200, paymentStatus: 'verified' },
-      { fullName: 'Sneha Mishra', email: 'sneha@email.com', phone: '9876543221', plan: 'Half-yearly Full-day', slot: '3pm-9pm', amount: 6000, paymentStatus: 'pending' },
-      { fullName: 'Ravi Kumar', email: 'ravi@email.com', phone: '9876543222', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
-      { fullName: 'Sakshi Pandey', email: 'sakshi@email.com', phone: '9876543223', plan: 'Quarterly Full-day', slot: '9am-9pm', amount: 3200, paymentStatus: 'verified' },
-      { fullName: 'Manish Singh', email: 'manish@email.com', phone: '9876543224', plan: 'Monthly Half-day', slot: '3pm-9pm', amount: 700, paymentStatus: 'pending' },
-      { fullName: 'Isha Rao', email: 'isha@email.com', phone: '9876543225', plan: 'Monthly Full-day', slot: '9am-9pm', amount: 1200, paymentStatus: 'verified' },
-      { fullName: 'Harsh Malhotra', email: 'harsh@email.com', phone: '9876543226', plan: 'Yearly Half-day', slot: '9am-3pm', amount: 6000, paymentStatus: 'verified' },
-      { fullName: 'Megha Tiwari', email: 'megha@email.com', phone: '9876543227', plan: 'Quarterly Half-day', slot: '3pm-9pm', amount: 1700, paymentStatus: 'pending' },
-      { fullName: 'Nikhil Bhat', email: 'nikhil@email.com', phone: '9876543228', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
-      { fullName: 'Richa Sharma', email: 'richa@email.com', phone: '9876543229', plan: 'Half-yearly Half-day', slot: '9am-9pm', amount: 3200, paymentStatus: 'verified' },
-      { fullName: 'Deepak Negi', email: 'deepak@email.com', phone: '9876543230', plan: 'Monthly Full-day', slot: '3pm-9pm', amount: 1200, paymentStatus: 'pending' },
-      { fullName: 'Ananya Chatterjee', email: 'ananya@email.com', phone: '9876543231', plan: 'Quarterly Half-day', slot: '9am-3pm', amount: 1700, paymentStatus: 'verified' },
-      { fullName: 'Sameer Khan', email: 'sameer@email.com', phone: '9876543232', plan: 'Monthly Half-day', slot: '9am-9pm', amount: 700, paymentStatus: 'verified' },
-      { fullName: 'Tanya Mishra', email: 'tanya@email.com', phone: '9876543233', plan: 'Yearly Full-day', slot: '3pm-9pm', amount: 10000, paymentStatus: 'pending' },
-      { fullName: 'Vishal Kumar', email: 'vishal@email.com', phone: '9876543234', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
-      { fullName: 'Kavya Singh', email: 'kavya@email.com', phone: '9876543235', plan: 'Half-yearly Full-day', slot: '9am-9pm', amount: 6000, paymentStatus: 'verified' },
-      { fullName: 'Aryan Patel', email: 'aryan@email.com', phone: '9876543236', plan: 'Quarterly Half-day', slot: '3pm-9pm', amount: 1700, paymentStatus: 'pending' },
-      { fullName: 'Zara Desai', email: 'zara@email.com', phone: '9876543237', plan: 'Monthly Full-day', slot: '9am-3pm', amount: 1200, paymentStatus: 'verified' },
+      { fullName: 'Aman Verma', email: 'aman.verma@email.com', phone: '9345612890', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Bhavna Singh', email: 'bhavna.singh@email.com', phone: '9876123450', plan: 'Monthly Full-day', slot: '9am-9pm', amount: 1200, paymentStatus: 'verified' },
+      { fullName: 'Chirag Patel', email: 'chirag.patel@email.com', phone: '9123456789', plan: 'Quarterly Half-day', slot: '3pm-9pm', amount: 1700, paymentStatus: 'pending' },
+      { fullName: 'Disha Reddy', email: 'disha.reddy@email.com', phone: '8765432190', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Esha Kapoor', email: 'esha.kapoor@email.com', phone: '9876543100', plan: 'Quarterly Full-day', slot: '9am-9pm', amount: 3200, paymentStatus: 'verified' },
+      { fullName: 'Faisal Khan', email: 'faisal.khan@email.com', phone: '9765432210', plan: 'Half-yearly Half-day', slot: '3pm-9pm', amount: 3200, paymentStatus: 'pending' },
+      { fullName: 'Gauravi Nair', email: 'gauravi.nair@email.com', phone: '9654321890', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Hritik Malhotra', email: 'hritik.malhotra@email.com', phone: '9543210876', plan: 'Yearly Full-day', slot: '9am-9pm', amount: 10000, paymentStatus: 'verified' },
+      { fullName: 'Ishita Gupta', email: 'ishita.gupta@email.com', phone: '9432108765', plan: 'Monthly Half-day', slot: '3pm-9pm', amount: 700, paymentStatus: 'pending' },
+      { fullName: 'Jaya Chatterjee', email: 'jaya.chatterjee@email.com', phone: '9321098765', plan: 'Quarterly Half-day', slot: '9am-3pm', amount: 1700, paymentStatus: 'verified' },
+      { fullName: 'Karan Singh', email: 'karan.singh@email.com', phone: '9210987654', plan: 'Monthly Full-day', slot: '9am-9pm', amount: 1200, paymentStatus: 'verified' },
+      { fullName: 'Lipika Tiwari', email: 'lipika.tiwari@email.com', phone: '9109876543', plan: 'Half-yearly Full-day', slot: '3pm-9pm', amount: 6000, paymentStatus: 'pending' },
+      { fullName: 'Mohit Sharma', email: 'mohit.sharma@email.com', phone: '8998765432', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Nisha Bansal', email: 'nisha.bansal@email.com', phone: '8987654321', plan: 'Quarterly Full-day', slot: '9am-9pm', amount: 3200, paymentStatus: 'verified' },
+      { fullName: 'Omkar Joshi', email: 'omkar.joshi@email.com', phone: '8976543210', plan: 'Monthly Half-day', slot: '3pm-9pm', amount: 700, paymentStatus: 'pending' },
+      { fullName: 'Priyanka Desai', email: 'priyanka.desai@email.com', phone: '8965432109', plan: 'Monthly Full-day', slot: '9am-9pm', amount: 1200, paymentStatus: 'verified' },
+      { fullName: 'Quinton Roy', email: 'quinton.roy@email.com', phone: '8954321098', plan: 'Yearly Half-day', slot: '9am-3pm', amount: 6000, paymentStatus: 'verified' },
+      { fullName: 'Ritika Rao', email: 'ritika.rao@email.com', phone: '8943210987', plan: 'Quarterly Half-day', slot: '3pm-9pm', amount: 1700, paymentStatus: 'pending' },
+      { fullName: 'Samrat Bhat', email: 'samrat.bhat@email.com', phone: '8932109876', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Tiya Sharma', email: 'tiya.sharma@email.com', phone: '8921098765', plan: 'Half-yearly Half-day', slot: '9am-9pm', amount: 3200, paymentStatus: 'verified' },
+      { fullName: 'Uday Kumar', email: 'uday.kumar@email.com', phone: '8910987654', plan: 'Monthly Full-day', slot: '3pm-9pm', amount: 1200, paymentStatus: 'pending' },
+      { fullName: 'Veda Singh', email: 'veda.singh@email.com', phone: '8809876543', plan: 'Quarterly Half-day', slot: '9am-3pm', amount: 1700, paymentStatus: 'verified' },
+      { fullName: 'Vikram Sinha', email: 'vikram.sinha@email.com', phone: '8798765432', plan: 'Monthly Half-day', slot: '9am-9pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Waris Ahmed', email: 'waris.ahmed@email.com', phone: '8687654321', plan: 'Yearly Full-day', slot: '3pm-9pm', amount: 10000, paymentStatus: 'pending' },
+      { fullName: 'Xander Lee', email: 'xander.lee@email.com', phone: '8576543210', plan: 'Monthly Half-day', slot: '9am-3pm', amount: 700, paymentStatus: 'verified' },
+      { fullName: 'Yamini Patel', email: 'yamini.patel@email.com', phone: '8465432109', plan: 'Half-yearly Full-day', slot: '9am-9pm', amount: 6000, paymentStatus: 'verified' },
+      { fullName: 'Zain Hassan', email: 'zain.hassan@email.com', phone: '8354321098', plan: 'Quarterly Half-day', slot: '3pm-9pm', amount: 1700, paymentStatus: 'pending' },
     ];
 
     try {
@@ -417,7 +445,8 @@ function App() {
   };
 
   const deleteAllDemoData = async () => {
-    if (!confirm('⚠️ Are you sure? This will delete ALL members!')) return;
+    if (!confirm('⚠️ WARNING: This will delete ALL members permanently!\n\nAre you absolutely sure?')) return;
+    if (!confirm('🔴 FINAL CONFIRMATION: Delete all members? This cannot be undone!')) return;
 
     try {
       const querySnapshot = await getDocs(collection(db, 'members'));
@@ -1151,6 +1180,7 @@ function App() {
                     </button>
                     <button
                       onClick={async () => {
+                        setIsSavingMember(true);
                         try {
                           // Update Firestore if docId exists
                           if (editingMember?.docId) {
@@ -1166,11 +1196,14 @@ function App() {
                         } catch (error) {
                           console.error('Error updating member:', error);
                           alert('❌ Error saving changes. Please try again.');
+                        } finally {
+                          setIsSavingMember(false);
                         }
                       }}
-                      className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
+                      disabled={isSavingMember}
+                      className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Save Changes
+                      {isSavingMember ? '⏳ Saving...' : 'Save Changes'}
                     </button>
                   </div>
                 </div>
@@ -2702,12 +2735,16 @@ function App() {
                     paymentMethod: paymentMethod,
                   });
                 }}
-                className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
+                disabled={isSubmitting}
+                className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                📥 Download Admission PDF
+                {isSubmitting ? '⏳ Saving...' : '📥 Download Admission PDF'}
               </button>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => {
+                  resetForm();
+                  navigate('/');
+                }}
                 className="w-full py-3 px-6 border-2 border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50"
               >
                 🏠 Go to Home
