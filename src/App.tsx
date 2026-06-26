@@ -2038,12 +2038,13 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-2">Date of Birth</label>
+                <label className="block font-semibold mb-2">Date of Birth <span className="text-red-600">*</span></label>
                 <input
                   type="date"
                   name="dateOfBirth"
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
+                  max={new Date().toISOString().split('T')[0]}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
                 />
               </div>
@@ -2134,8 +2135,19 @@ function App() {
                     alert('Please enter your email');
                     return;
                   }
+                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  if (!emailRegex.test(formData.email.trim())) {
+                    alert('Please enter a valid email address');
+                    return;
+                  }
                   if (!formData.phone.trim()) {
                     alert('Please enter your WhatsApp number');
+                    return;
+                  }
+                  const phoneRegex = /^[0-9]{10}$/;
+                  const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
+                  if (!phoneRegex.test(cleanPhone)) {
+                    alert('Please enter a valid 10-digit phone number');
                     return;
                   }
                   if (!formData.dateOfBirth) {
@@ -2236,6 +2248,12 @@ function App() {
                   }
                   if (!formData.emergencyContactPhone.trim()) {
                     alert('Please enter emergency contact phone number');
+                    return;
+                  }
+                  const emergencyPhoneRegex = /^[0-9]{10}$/;
+                  const cleanEmergencyPhone = formData.emergencyContactPhone.replace(/[^0-9]/g, '');
+                  if (!emergencyPhoneRegex.test(cleanEmergencyPhone)) {
+                    alert('Please enter a valid 10-digit emergency contact number');
                     return;
                   }
                   navigate('/admission/step-3');
@@ -2640,17 +2658,17 @@ function App() {
                   generatePDF(bookingId, amount);
                   // Save member to database
                   addMember({
-                    fullName: formData.fullName,
-                    email: formData.email,
-                    phone: formData.phone,
+                    fullName: formData.fullName.trim(),
+                    email: formData.email.trim().toLowerCase(),
+                    phone: formData.phone.replace(/[^0-9]/g, ''),
                     dateOfBirth: formData.dateOfBirth,
                     gender: formData.gender,
-                    currentClass: formData.currentClass,
-                    targetExam: formData.targetExam,
-                    schoolCollege: formData.schoolCollege,
-                    emergencyContactName: formData.emergencyContactName,
-                    emergencyContactPhone: formData.emergencyContactPhone,
-                    referralSource: formData.referralSource,
+                    currentClass: formData.currentClass.trim(),
+                    targetExam: formData.targetExam.trim(),
+                    schoolCollege: formData.schoolCollege.trim(),
+                    emergencyContactName: formData.emergencyContactName.trim(),
+                    emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
+                    referralSource: formData.referralSource.trim(),
                     plan: `${selectedPlan} ${selectedDayType}`,
                     slot: selectedSlot,
                     startDate: selectedDate,
