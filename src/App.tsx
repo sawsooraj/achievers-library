@@ -46,10 +46,13 @@ function App() {
       navigate(`/admin/${adminPage}`);
     } else if (step > 0) {
       navigate(`/admission/step-${step}`);
-    } else if (!location.hash.includes('/admin')) {
-      navigate('/');
+    } else if (step === 0) {
+      // Only navigate home if explicitly on step 0, don't override admin paths
+      if (!location.hash.includes('/admin')) {
+        navigate('/');
+      }
     }
-  }, [step, isAdmin, adminPage, navigate, location]);
+  }, [step, isAdmin, adminPage, navigate]);
 
   // Load members from Firestore
   useEffect(() => {
