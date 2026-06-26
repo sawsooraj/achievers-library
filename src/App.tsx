@@ -40,8 +40,16 @@ function App() {
     emergencyContactName: '',
     emergencyContactPhone: '',
     referralSource: '',
-    temporaryAddress: '',
-    permanentAddress: '',
+    // Temporary Address - Structured
+    tempStreet: '',
+    tempCity: '',
+    tempState: '',
+    tempPincode: '',
+    // Permanent Address - Structured
+    permStreet: '',
+    permCity: '',
+    permState: '',
+    permPincode: '',
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -2780,61 +2788,96 @@ function App() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
-            <h2 className="text-2xl font-bold mb-6">Address Details</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block font-semibold mb-2">Temporary Address <span className="text-red-600">*</span></label>
-                <textarea
-                  name="temporaryAddress"
-                  value={formData.temporaryAddress}
-                  onChange={handleInputChange}
-                  placeholder="Enter your temporary address (Street, City, State, Postal Code)"
-                  rows={3}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
-                />
-              </div>
+            <h2 className="text-2xl font-bold mb-6">📍 Address Details</h2>
 
-              <div className="border-t pt-4">
-                <label className="flex items-center gap-3 cursor-pointer mb-4">
-                  <input
-                    type="checkbox"
-                    checked={isSamePermanentAddress}
-                    onChange={(e) => {
-                      setIsSamePermanentAddress(e.target.checked);
-                      if (e.target.checked) {
-                        setFormData({
-                          ...formData,
-                          permanentAddress: formData.temporaryAddress,
-                        });
-                      }
-                    }}
-                    className="w-5 h-5 cursor-pointer"
-                  />
-                  <span className="font-semibold">Permanent address is same as temporary address</span>
-                </label>
-              </div>
-
-              {!isSamePermanentAddress && (
+            {/* TEMPORARY ADDRESS */}
+            <div className="mb-8 p-6 bg-blue-50 rounded-xl border-2 border-blue-200">
+              <h3 className="text-lg font-bold mb-4 text-blue-900">🏠 Temporary Address <span className="text-red-600">*</span></h3>
+              <div className="space-y-3">
                 <div>
-                  <label className="block font-semibold mb-2">Permanent Address <span className="text-red-600">*</span></label>
-                  <textarea
-                    name="permanentAddress"
-                    value={formData.permanentAddress}
-                    onChange={handleInputChange}
-                    placeholder="Enter your permanent address (Street, City, State, Postal Code)"
-                    rows={3}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
-                  />
+                  <label className="block text-sm font-semibold mb-1 text-gray-700">Street Address / House No. <span className="text-red-600">*</span></label>
+                  <input type="text" value={formData.tempStreet || ''} onChange={(e) => setFormData({...formData, tempStreet: e.target.value})} placeholder="e.g., 123 Main Street, Apt 456" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
                 </div>
-              )}
-
-              {isSamePermanentAddress && (
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <p className="text-sm text-gray-600 mb-2">Permanent Address (Auto-filled)</p>
-                  <p className="font-semibold text-gray-800 whitespace-pre-wrap">{formData.permanentAddress}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold mb-1 text-gray-700">City <span className="text-red-600">*</span></label>
+                    <input type="text" value={formData.tempCity || ''} onChange={(e) => setFormData({...formData, tempCity: e.target.value})} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1 text-gray-700">State <span className="text-red-600">*</span></label>
+                    <input type="text" value={formData.tempState || ''} onChange={(e) => setFormData({...formData, tempState: e.target.value})} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
+                  </div>
                 </div>
-              )}
+                <div>
+                  <label className="block text-sm font-semibold mb-1 text-gray-700">Postal Code / Pin Code <span className="text-red-600">*</span></label>
+                  <input type="text" value={formData.tempPincode || ''} onChange={(e) => setFormData({...formData, tempPincode: e.target.value})} placeholder="e.g., 110001" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
+                </div>
+              </div>
             </div>
+
+            {/* SAME ADDRESS CHECKBOX */}
+            <div className="border-t-2 pt-4 mb-8">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isSamePermanentAddress}
+                  onChange={(e) => {
+                    setIsSamePermanentAddress(e.target.checked);
+                    if (e.target.checked) {
+                      setFormData({
+                        ...formData,
+                        permStreet: formData.tempStreet,
+                        permCity: formData.tempCity,
+                        permState: formData.tempState,
+                        permPincode: formData.tempPincode,
+                      });
+                    }
+                  }}
+                  className="w-5 h-5 cursor-pointer"
+                />
+                <span className="font-bold text-gray-700">✓ Permanent address is same as temporary address</span>
+              </label>
+            </div>
+
+            {/* PERMANENT ADDRESS */}
+            {!isSamePermanentAddress && (
+              <div className="mb-8 p-6 bg-green-50 rounded-xl border-2 border-green-200">
+                <h3 className="text-lg font-bold mb-4 text-green-900">🏡 Permanent Address <span className="text-red-600">*</span></h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-semibold mb-1 text-gray-700">Street Address / House No. <span className="text-red-600">*</span></label>
+                    <input type="text" value={formData.permStreet || ''} onChange={(e) => setFormData({...formData, permStreet: e.target.value})} placeholder="e.g., 123 Main Street, Apt 456" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-semibold mb-1 text-gray-700">City <span className="text-red-600">*</span></label>
+                      <input type="text" value={formData.permCity || ''} onChange={(e) => setFormData({...formData, permCity: e.target.value})} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-1 text-gray-700">State <span className="text-red-600">*</span></label>
+                      <input type="text" value={formData.permState || ''} onChange={(e) => setFormData({...formData, permState: e.target.value})} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-1 text-gray-700">Postal Code / Pin Code <span className="text-red-600">*</span></label>
+                    <input type="text" value={formData.permPincode || ''} onChange={(e) => setFormData({...formData, permPincode: e.target.value})} placeholder="e.g., 110001" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* PERMANENT ADDRESS SUMMARY (when same) */}
+            {isSamePermanentAddress && (
+              <div className="mb-8 p-6 bg-green-50 rounded-xl border-2 border-green-200">
+                <h3 className="text-lg font-bold mb-3 text-green-900">🏡 Permanent Address (Same as Temporary)</h3>
+                <div className="space-y-2 text-gray-800">
+                  <p><span className="font-semibold">Street:</span> {formData.tempStreet}</p>
+                  <p><span className="font-semibold">City:</span> {formData.tempCity}</p>
+                  <p><span className="font-semibold">State:</span> {formData.tempState}</p>
+                  <p><span className="font-semibold">Pin Code:</span> {formData.tempPincode}</p>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-4 mt-8">
               <button
@@ -2845,12 +2888,12 @@ function App() {
               </button>
               <button
                 onClick={() => {
-                  if (!formData.temporaryAddress.trim()) {
-                    alert('Please enter your temporary address');
+                  if (!formData.tempStreet.trim() || !formData.tempCity.trim() || !formData.tempState.trim() || !formData.tempPincode.trim()) {
+                    alert('Please fill all temporary address fields');
                     return;
                   }
-                  if (!isSamePermanentAddress && !formData.permanentAddress.trim()) {
-                    alert('Please enter your permanent address');
+                  if (!isSamePermanentAddress && (!formData.permStreet.trim() || !formData.permCity.trim() || !formData.permState.trim() || !formData.permPincode.trim())) {
+                    alert('Please fill all permanent address fields');
                     return;
                   }
                   navigate('/admission/step-3');
