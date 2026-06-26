@@ -76,6 +76,24 @@ function App() {
     localStorage.setItem('isAdmin', String(isAdmin));
   }, [isAdmin]);
 
+  // Parse URL and sync to step/admin state
+  useEffect(() => {
+    const hash = location.hash.replace('#', '') || '/';
+
+    if (hash.startsWith('/admin/')) {
+      const page = hash.replace('/admin/', '') as any;
+      setIsAdmin(true);
+      setAdminPage(page || 'dashboard');
+    } else if (hash.startsWith('/admission/step-')) {
+      const stepNum = parseInt(hash.replace('/admission/step-', ''));
+      if (!isNaN(stepNum)) {
+        setStep(stepNum);
+      }
+    } else {
+      setStep(0);
+    }
+  }, [location.hash]);
+
   // Sync URL with step/admin state
   useEffect(() => {
     if (isAdmin) {
