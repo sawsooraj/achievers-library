@@ -76,6 +76,15 @@ function App() {
     localStorage.setItem('isAdmin', String(isAdmin));
   }, [isAdmin]);
 
+  // Handle browser back button
+  useEffect(() => {
+    const handlePopState = () => {
+      // URL has changed, parser will handle updating state
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // Parse URL and sync to step/admin state (URL is source of truth)
   useEffect(() => {
     const pathname = location.pathname || '/';
@@ -107,9 +116,11 @@ function App() {
               ...doc.data()
             }))
             .filter((m: any) => !m.deleted); // Filter out soft-deleted members
+          console.log('Members updated from Firestore:', membersList.length, 'members');
           setMembers(membersList as any[]);
         },
         (error) => {
+          console.error('Firestore listener error:', error);
           console.log('Loading members from localStorage as fallback...');
           const saved = localStorage.getItem('members');
           if (saved) setMembers(JSON.parse(saved));
@@ -119,7 +130,7 @@ function App() {
       // Cleanup listener on unmount
       return () => unsubscribe();
     } catch (error) {
-      console.log('Error setting up listener:', error);
+      console.error('Error setting up listener:', error);
       const saved = localStorage.getItem('members');
       if (saved) setMembers(JSON.parse(saved));
     }
@@ -388,13 +399,12 @@ function App() {
       };
 
       // Save to Firestore
-      await addDoc(collection(db, 'members'), newMember);
-
-      // Also update local state
-      setMembers([...members, newMember]);
+      const docRef = await addDoc(collection(db, 'members'), newMember);
+      console.log('Member saved to Firestore:', docRef.id);
+      alert('✅ Admission submitted successfully! Your ID: ' + newMember.id);
     } catch (error) {
       console.error('Error adding member:', error);
-      alert('Error saving membership. Please try again.');
+      alert('❌ Error saving membership: ' + (error as any).message);
     } finally {
       setIsSubmitting(false);
     }

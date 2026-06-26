@@ -11,6 +11,14 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
+// Check if Firebase config is complete
+if (!firebaseConfig.projectId) {
+  console.error('❌ Firebase environment variables not set!');
+  console.warn('Required: VITE_FIREBASE_PROJECT_ID and other Firebase keys');
+} else {
+  console.log('✅ Firebase config found');
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
