@@ -427,7 +427,6 @@ function App() {
         ...memberData,
         createdAt: new Date().toISOString(),
         paymentStatus: 'pending',
-        verified: false,
         deleted: false,
       };
 
@@ -1085,9 +1084,13 @@ function App() {
                         <td className="py-4 px-6">{member.plan}</td>
                         <td className="py-4 px-6">
                           <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                            member.verified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            member.paymentStatus === 'verified' ? 'bg-green-100 text-green-800' :
+                            member.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
                           }`}>
-                            {member.verified ? 'Verified' : 'Pending'}
+                            {member.paymentStatus === 'verified' ? '✅ Verified' :
+                             member.paymentStatus === 'pending' ? '⏳ Pending' :
+                             '❌ Rejected'}
                           </span>
                         </td>
                         <td className="py-4 px-6 flex gap-2">
