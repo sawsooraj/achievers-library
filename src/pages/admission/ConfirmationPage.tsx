@@ -1,6 +1,6 @@
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { MembershipPlan, DayType } from '../../types';
+import type { MembershipPlan, DayType } from '../../types';
 
 interface ConfirmationPageProps {
   plan: MembershipPlan;

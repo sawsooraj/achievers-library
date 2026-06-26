@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { AdmissionFormData } from '../../types';
+import type { AdmissionFormData } from '../../types';
 
 interface SignupPageProps {
   onNext: (data: AdmissionFormData) => void;

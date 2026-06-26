@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { SLOT_TYPES, TOTAL_SEATS } from '../../lib/constants';
-import { SlotType } from '../../types';
+import type { SlotType } from '../../types';
 
 interface SlotSelectionProps {
   dayType: 'Half-day' | 'Full-day';

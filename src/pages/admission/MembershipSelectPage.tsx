@@ -1,7 +1,7 @@
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { MEMBERSHIP_OFFERS, REGISTRATION_FEE } from '../../lib/constants';
-import { MembershipPlan, DayType } from '../../types';
+import type { MembershipPlan, DayType } from '../../types';
 
 interface MembershipSelectProps {
   onNext: (plan: MembershipPlan, dayType: DayType) => void;

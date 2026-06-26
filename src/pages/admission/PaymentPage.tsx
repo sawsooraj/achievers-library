@@ -3,7 +3,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { REGISTRATION_FEE, MEMBERSHIP_OFFERS } from '../../lib/constants';
-import { PaymentMethod, MembershipPlan, DayType } from '../../types';
+import type { PaymentMethod, MembershipPlan, DayType } from '../../types';
 
 interface PaymentPageProps {
   plan: MembershipPlan;
