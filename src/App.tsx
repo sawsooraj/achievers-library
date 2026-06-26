@@ -345,7 +345,7 @@ function App() {
             onChange={(e) => setAdminPassword(e.target.value)}
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
-                if (adminPassword === '1234') {
+                if (adminPassword === 'admin') {
                   setIsAdmin(true);
                   setShowAdminLogin(false);
                   setAdminPassword('');
@@ -362,7 +362,7 @@ function App() {
 
           <button
             onClick={() => {
-              if (adminPassword === '1234') {
+              if (adminPassword === 'admin') {
                 setIsAdmin(true);
                 setShowAdminLogin(false);
                 setAdminPassword('');
