@@ -2724,7 +2724,7 @@ function App() {
                 const bookingId = `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
                 const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
 
-                generatePDF(bookingId, amount);
+                await generatePDF(bookingId, amount);
                 await addMember({
                   fullName: formData.fullName.trim(),
                   email: formData.email.trim().toLowerCase(),
