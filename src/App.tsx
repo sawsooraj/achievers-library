@@ -106,21 +106,27 @@ function App() {
   // Load members from Firestore with real-time updates
   useEffect(() => {
     try {
+      console.log('Setting up Firestore real-time listener...');
       // Set up real-time listener for members collection
       const unsubscribe = onSnapshot(
         collection(db, 'members'),
         (querySnapshot) => {
+          console.log('Firestore listener triggered, total docs:', querySnapshot.docs.length);
           const membersList = querySnapshot.docs
-            .map(doc => ({
-              docId: doc.id,
-              ...doc.data()
-            }))
+            .map(doc => {
+              const data = doc.data();
+              console.log('Doc ID:', doc.id, 'Deleted:', data.deleted, 'Name:', data.fullName);
+              return {
+                docId: doc.id,
+                ...data
+              };
+            })
             .filter((m: any) => !m.deleted); // Filter out soft-deleted members
-          console.log('Members updated from Firestore:', membersList.length, 'members');
+          console.log('✅ Members loaded from Firestore:', membersList.length, 'members');
           setMembers(membersList as any[]);
         },
         (error) => {
-          console.error('Firestore listener error:', error);
+          console.error('❌ Firestore listener error:', error);
           console.log('Loading members from localStorage as fallback...');
           const saved = localStorage.getItem('members');
           if (saved) setMembers(JSON.parse(saved));
