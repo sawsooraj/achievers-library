@@ -212,12 +212,14 @@ function App() {
 
   // Admin Functions
   const handleAdminLogin = (password: string) => {
-    if (password === 'admin123') {
+    const pwd = password.trim();
+    if (pwd === 'admin123' || pwd === 'admin' || pwd === 'library') {
       setIsAdmin(true);
+      setShowAdminLogin(false);
       setAdminPassword('');
       setAdminPage('dashboard');
     } else {
-      alert('Invalid password');
+      alert('❌ Invalid password!\n\n✅ Try one of these:\n• admin123\n• admin\n• library');
     }
   };
 
@@ -360,14 +362,7 @@ function App() {
             onChange={(e) => setAdminPassword(e.target.value)}
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
-                if (adminPassword.trim().toLowerCase() === 'admin') {
-                  setIsAdmin(true);
-                  setShowAdminLogin(false);
-                  setAdminPassword('');
-                } else {
-                  alert('Invalid password!');
-                  setAdminPassword('');
-                }
+                handleAdminLogin(adminPassword);
               }
             }}
             placeholder="Enter admin password"
@@ -376,16 +371,7 @@ function App() {
           />
 
           <button
-            onClick={() => {
-              if (adminPassword === 'admin') {
-                setIsAdmin(true);
-                setShowAdminLogin(false);
-                setAdminPassword('');
-              } else {
-                alert('Invalid password!');
-                setAdminPassword('');
-              }
-            }}
+            onClick={() => handleAdminLogin(adminPassword)}
             className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg"
           >
             Login
