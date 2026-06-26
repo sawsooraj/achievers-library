@@ -6,7 +6,7 @@ import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { db } from './firebase';
-import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, updateDoc, doc, onSnapshot } from 'firebase/firestore';
 
 // Configuration
 const ADMIN_PASSWORDS = ['admin123', 'admin', 'library'];
@@ -94,23 +94,35 @@ function App() {
     }
   }, [location.pathname]);
 
-  // Load members from Firestore
+  // Load members from Firestore with real-time updates
   useEffect(() => {
-    const loadMembers = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, 'members'));
-        const membersList = querySnapshot.docs.map(doc => ({
-          docId: doc.id,
-          ...doc.data()
-        }));
-        setMembers(membersList as any[]);
-      } catch (error) {
-        console.log('Loading members from localStorage as fallback...');
-        const saved = localStorage.getItem('members');
-        if (saved) setMembers(JSON.parse(saved));
-      }
-    };
-    loadMembers();
+    try {
+      // Set up real-time listener for members collection
+      const unsubscribe = onSnapshot(
+        collection(db, 'members'),
+        (querySnapshot) => {
+          const membersList = querySnapshot.docs
+            .map(doc => ({
+              docId: doc.id,
+              ...doc.data()
+            }))
+            .filter((m: any) => !m.deleted); // Filter out soft-deleted members
+          setMembers(membersList as any[]);
+        },
+        (error) => {
+          console.log('Loading members from localStorage as fallback...');
+          const saved = localStorage.getItem('members');
+          if (saved) setMembers(JSON.parse(saved));
+        }
+      );
+
+      // Cleanup listener on unmount
+      return () => unsubscribe();
+    } catch (error) {
+      console.log('Error setting up listener:', error);
+      const saved = localStorage.getItem('members');
+      if (saved) setMembers(JSON.parse(saved));
+    }
   }, []);
 
   // QR Scanner initialization
