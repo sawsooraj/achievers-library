@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
@@ -15,6 +16,9 @@ const PLANS = {
 };
 
 function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Admission Flow States
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState({
@@ -36,6 +40,17 @@ function App() {
   const [members, setMembers] = useState<any[]>([]);
   const [scannedBookingId, setScannedBookingId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Sync URL with step/admin state
+  useEffect(() => {
+    if (isAdmin) {
+      navigate(`/admin/${adminPage}`);
+    } else if (step > 0) {
+      navigate(`/admission/step-${step}`);
+    } else {
+      navigate('/');
+    }
+  }, [step, isAdmin, adminPage, navigate]);
 
   // Load members from Firestore
   useEffect(() => {
@@ -1722,7 +1737,8 @@ function App() {
     );
   }
 
-  return null;
+  // Rest of the component rendering stays the same
+  // The useEffect above syncs the URL based on state
 }
 
 export default App;
