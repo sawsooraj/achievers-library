@@ -1644,15 +1644,14 @@ function App() {
                           if (editingMember?.docId) {
                             const memberRef = doc(db, 'members', editingMember.docId);
                             await updateDoc(memberRef, editFormData);
-                            console.log('✅ Firestore updated with:', editFormData);
-                          }
+                            console.log('✅ Firestore updated:', editFormData.fullName, 'Status:', editFormData.paymentStatus);
 
-                          // Update local state with merged data to preserve all fields
-                          const updatedMember = {...editingMember, ...editFormData};
-                          setMembers(members.map(m => m.docId === editingMember.docId ? updatedMember : m));
-                          setEditingMember(null);
-                          setEditFormData(null);
-                          alert(`✅ ${editFormData.fullName} updated successfully!`);
+                            // Don't update local state - let real-time listener handle it
+                            // This prevents race conditions where listener overwrites our update
+                            setEditingMember(null);
+                            setEditFormData(null);
+                            alert(`✅ ${editFormData.fullName} updated successfully!`);
+                          }
                         } catch (error) {
                           console.error('Error updating member:', error);
                           alert('❌ Error saving changes. Please try again.');
