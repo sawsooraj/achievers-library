@@ -78,26 +78,21 @@ function App() {
 
   // Parse URL and sync to step/admin state (URL is source of truth)
   useEffect(() => {
-    const hash = location.hash.replace('#', '') || '/';
-    console.log('URL Parser - hash:', hash, 'current step:', step);
+    const pathname = location.pathname || '/';
 
-    if (hash.startsWith('/admin/')) {
-      const page = hash.replace('/admin/', '') as any;
-      console.log('Setting admin page:', page);
+    if (pathname.startsWith('/admin/')) {
+      const page = pathname.replace('/admin/', '') as any;
       setIsAdmin(true);
       setAdminPage(page || 'dashboard');
-    } else if (hash.startsWith('/admission/step-')) {
-      const stepNum = parseInt(hash.replace('/admission/step-', ''));
-      console.log('Parsing admission step:', stepNum);
+    } else if (pathname.startsWith('/admission/step-')) {
+      const stepNum = parseInt(pathname.replace('/admission/step-', ''));
       if (!isNaN(stepNum)) {
-        console.log('Setting step to:', stepNum);
         setStep(stepNum);
       }
     } else {
-      console.log('Setting step to 0 (home)');
       setStep(0);
     }
-  }, [location.hash]);
+  }, [location.pathname]);
 
   // Load members from Firestore
   useEffect(() => {
@@ -1655,11 +1650,6 @@ function App() {
         </div>
       );
     }
-  }
-
-  // DEBUG: Show current state
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Current state - step:', step, 'isAdmin:', isAdmin, 'hash:', location.hash);
   }
 
   // HOME PAGE
