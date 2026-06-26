@@ -2816,7 +2816,9 @@ function App() {
                     utrNumber: paymentMethod === 'upi' ? utrNumber : null,
                   });
                   console.log('✅ Member saved. Success modal should show now.');
-                  // Step 3: Success modal will show from addMember
+                  // Step 3: Navigate to thank you page
+                  console.log('🎉 Navigating to thank you page');
+                  navigate('/admission/step-6');
                 } catch (error: any) {
                   console.error('❌ Submission error:', error);
                   alert('❌ Error during submission:\n' + (error?.message || String(error)));
