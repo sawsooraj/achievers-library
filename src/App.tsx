@@ -839,12 +839,7 @@ function App() {
                 Join
               </button>
               <button
-                onClick={() => {
-                  setIsAdmin(false);
-                  setAdminPassword('');
-                  setAdminPage('dashboard');
-                  window.location.hash = '#/admin/dashboard';
-                }}
+                onClick={() => navigate('/admin/dashboard')}
                 className="px-3 py-2 text-gray-600 hover:text-blue-600 transition text-lg md:text-xs font-semibold"
                 title="Admin Panel"
               >
