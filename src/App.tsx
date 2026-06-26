@@ -253,6 +253,20 @@ function App() {
     }
   };
 
+  // WhatsApp Messages & Helper
+  const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const whatsappMessages = {
+    welcome: (membershipId: number) => `Hello! Welcome to Achievers Library. Your Membership ID: ${membershipId}. Start studying and achieve your goals! 📚`,
+    thankYou: () => `Thank you for your payment! Your membership is now active. Happy studying! 📚`,
+    paymentRequest: () => `We didn't receive your payment confirmation. Please share the payment screenshot again. Thanks!`,
+    renewal: (date: string) => `Your membership expires on ${date}. Renew now to continue studying! 📚`,
+  };
+
   // Admin Functions
   const handleAdminLogin = (password: string) => {
     const pwd = password.trim();
@@ -570,16 +584,16 @@ function App() {
                             onClick={() => {
                               const membershipId = Math.floor(10000 + Math.random() * 90000);
                               setMembers(members.map(m => m.id === member.id ? { ...m, membershipId } : m));
-                              alert(`✅ Admission Accepted!\nMembership ID: ${membershipId}\n\nWelcome message sent to ${member.phone}`);
+                              const message = whatsappMessages.welcome(membershipId);
+                              sendWhatsAppMessage(member.phone, message);
                             }}
                             className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
                           >
-                            ✅ Accept & Send Welcome
+                            💬 Accept & WhatsApp
                           </button>
                           <button
                             onClick={() => {
                               setMembers(members.filter(m => m.id !== member.id));
-                              alert(`❌ Admission rejected for ${member.fullName}`);
                             }}
                             className="flex-1 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 text-sm"
                           >
@@ -623,20 +637,22 @@ function App() {
                           <button
                             onClick={() => {
                               setMembers(members.map(m => m.id === member.id ? { ...m, paymentStatus: 'verified' } : m));
-                              alert(`✅ Payment Verified!\n\nThank you message sent to ${member.phone}\n"Thank you for your payment! Your membership is now active. Happy studying! 📚"`);
+                              const message = whatsappMessages.thankYou();
+                              sendWhatsAppMessage(member.phone, message);
                             }}
                             className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
                           >
-                            ✅ Verify & Send Thank You
+                            ✅ Verify & WhatsApp
                           </button>
                           <button
                             onClick={() => {
                               setMembers(members.map(m => m.id === member.id ? { ...m, paymentStatus: 'rejected' } : m));
-                              alert(`❌ Payment Rejected\n\nRequest message sent to ${member.phone}`);
+                              const message = whatsappMessages.paymentRequest();
+                              sendWhatsAppMessage(member.phone, message);
                             }}
-                            className="flex-1 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 text-sm"
+                            className="flex-1 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 text-sm"
                           >
-                            ❌ Reject & Request Again
+                            📱 Request Again
                           </button>
                         </div>
                       </div>
@@ -1238,7 +1254,14 @@ function App() {
                 </div>
 
                 <button
-                  onClick={() => alert('Reminders sent via WhatsApp!')}
+                  onClick={() => {
+                    members.forEach(member => {
+                      if (member.phone) {
+                        const message = whatsappMessages.renewal(member.membershipId?.toString() || 'soon');
+                        sendWhatsAppMessage(member.phone, message);
+                      }
+                    });
+                  }}
                   className="w-full py-4 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold rounded-lg hover:shadow-lg text-lg"
                 >
                   📱 Send WhatsApp Reminders
