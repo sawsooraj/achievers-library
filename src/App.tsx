@@ -1594,7 +1594,7 @@ function App() {
               <a href="#pricing" className="hidden md:inline text-gray-600 hover:text-blue-600 transition">Plans</a>
               <a href="#contact" className="hidden md:inline text-gray-600 hover:text-blue-600 transition">Contact</a>
               <button
-                onClick={() => setStep(1)}
+                onClick={() => navigate('/admission/step-1')}
                 className="px-4 md:px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:shadow-lg transition text-xs md:text-sm"
               >
                 Join
@@ -1663,7 +1663,7 @@ function App() {
               <motion.button
                 whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setStep(1)}
+                onClick={() => navigate('/admission/step-1')}
                 className="px-10 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-xl text-lg shadow-lg hover:shadow-2xl transition"
               >
                 ✨ Start Your Admission
@@ -1928,7 +1928,7 @@ function App() {
           <h2 className="text-4xl font-black mb-6">Ready to Start Your Journey?</h2>
           <p className="text-xl text-gray-600 mb-10">Join hundreds of students already studying at The Achievers' Library</p>
           <button
-            onClick={() => setStep(1)}
+            onClick={() => navigate('/admission/step-1')}
             className="inline-block bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-4 px-16 rounded-full text-lg transition shadow-lg hover:shadow-xl transform hover:scale-105"
           >
             ✨ Get Started Today
@@ -2103,7 +2103,7 @@ function App() {
             </div>
             <div className="flex gap-4 mt-8">
               <button
-                onClick={() => setStep(0)}
+                onClick={() => navigate('/')}
                 className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
               >
                 Back
@@ -2122,7 +2122,7 @@ function App() {
                     alert('Please enter your WhatsApp number');
                     return;
                   }
-                  setStep(2);
+                  navigate('/admission/step-2');
                 }}
                 className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
               >
@@ -2199,7 +2199,7 @@ function App() {
             </div>
             <div className="flex gap-4 mt-8">
               <button
-                onClick={() => setStep(1)}
+                onClick={() => navigate('/admission/step-1')}
                 className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
               >
                 Back
@@ -2214,7 +2214,7 @@ function App() {
                     alert('Please enter emergency contact phone number');
                     return;
                   }
-                  setStep(3);
+                  navigate('/admission/step-3');
                 }}
                 className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
               >
@@ -2302,13 +2302,13 @@ function App() {
 
           <div className="flex gap-4">
             <button
-              onClick={() => setStep(1)}
+              onClick={() => navigate('/admission/step-1')}
               className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
             >
               Back
             </button>
             <button
-              onClick={() => setStep(4)}
+              onClick={() => navigate('/admission/step-4')}
               disabled={!selectedPlan || !selectedDayType}
               className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
@@ -2406,13 +2406,13 @@ function App() {
 
           <div className="flex gap-4 mt-6">
             <button
-              onClick={() => setStep(4)}
+              onClick={() => navigate('/admission/step-3')}
               className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
             >
               Back
             </button>
             <button
-              onClick={() => setStep(6)}
+              onClick={() => navigate('/admission/step-5')}
               disabled={!selectedSlot || !selectedDate}
               className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
@@ -2512,13 +2512,13 @@ function App() {
 
           <div className="flex gap-4 mt-6">
             <button
-              onClick={() => setStep(4)}
+              onClick={() => navigate('/admission/step-3')}
               className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
             >
               Back
             </button>
             <button
-              onClick={() => setStep(6)}
+              onClick={() => navigate('/admission/step-5')}
               className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
             >
               Next →
@@ -2624,7 +2624,7 @@ function App() {
                 📥 Download Admission PDF
               </button>
               <button
-                onClick={() => setStep(0)}
+                onClick={() => navigate('/')}
                 className="w-full py-3 px-6 border-2 border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50"
               >
                 🏠 Go to Home
