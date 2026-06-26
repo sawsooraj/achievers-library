@@ -76,37 +76,23 @@ function App() {
     localStorage.setItem('isAdmin', String(isAdmin));
   }, [isAdmin]);
 
-  // Parse URL and sync to step/admin state
+  // Parse URL and sync to step/admin state (URL is source of truth)
   useEffect(() => {
     const hash = location.hash.replace('#', '') || '/';
 
     if (hash.startsWith('/admin/')) {
       const page = hash.replace('/admin/', '') as any;
-      setIsAdmin(true);
-      setAdminPage(page || 'dashboard');
+      if (!isAdmin) setIsAdmin(true);
+      if (adminPage !== page) setAdminPage(page || 'dashboard');
     } else if (hash.startsWith('/admission/step-')) {
       const stepNum = parseInt(hash.replace('/admission/step-', ''));
-      if (!isNaN(stepNum)) {
+      if (!isNaN(stepNum) && step !== stepNum) {
         setStep(stepNum);
       }
-    } else {
+    } else if (step !== 0) {
       setStep(0);
     }
-  }, [location.hash]);
-
-  // Sync URL with step/admin state
-  useEffect(() => {
-    if (isAdmin) {
-      navigate(`/admin/${adminPage}`);
-    } else if (step > 0) {
-      navigate(`/admission/step-${step}`);
-    } else if (step === 0) {
-      // Only navigate home if explicitly on step 0, don't override admin paths
-      if (!location.hash.includes('/admin')) {
-        navigate('/');
-      }
-    }
-  }, [step, isAdmin, adminPage, navigate]);
+  }, [location.hash, step, isAdmin, adminPage]);
 
   // Load members from Firestore
   useEffect(() => {
@@ -582,7 +568,7 @@ function App() {
                 </div>
               </div>
               <button
-                onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); setStep(0); }}
+                onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); navigate('/'); }}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
               >
                 Logout
