@@ -887,7 +887,12 @@ function App() {
                 Join Now
               </button>
               <button
-                onClick={() => { setIsAdmin(false); setAdminPassword(''); setAdminPage('dashboard'); }}
+                onClick={() => {
+                  setIsAdmin(false);
+                  setAdminPassword('');
+                  setAdminPage('dashboard');
+                  navigate('/admin/dashboard');
+                }}
                 className="px-4 py-2 text-gray-600 hover:text-blue-600 transition text-xs font-semibold"
                 title="Admin Panel"
               >
