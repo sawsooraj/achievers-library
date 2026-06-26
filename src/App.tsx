@@ -281,6 +281,24 @@ function App() {
     }
   };
 
+  const deleteAllDemoData = async () => {
+    if (!confirm('⚠️ Are you sure? This will delete ALL members!')) return;
+
+    try {
+      const querySnapshot = await getDocs(collection(db, 'members'));
+      for (const docSnapshot of querySnapshot.docs) {
+        await updateDoc(doc(db, 'members', docSnapshot.id), {
+          deleted: true,
+        });
+      }
+      setMembers([]);
+      alert('✅ All demo data deleted!');
+    } catch (error) {
+      console.error('Error deleting data:', error);
+      alert('❌ Error deleting data');
+    }
+  };
+
   const updateMemberPayment = async (id: string, status: string) => {
     try {
       // Find the member with docId
@@ -438,22 +456,36 @@ function App() {
               </div>
 
               {/* Demo Data Button */}
-              {members.length === 0 && (
-                <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-8">
-                  <p className="text-blue-900 font-semibold mb-4">
-                    📊 No members yet? Add demo data to test the dashboard!
-                  </p>
-                  <button
-                    onClick={addDemoData}
-                    className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
-                  >
-                    ➕ Add 27 Demo Users
-                  </button>
-                  <p className="text-xs text-blue-700 mt-3">
-                    ⚠️ Remember: Delete demo data before going live!
-                  </p>
-                </div>
-              )}
+              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6 mb-8">
+                {members.length === 0 ? (
+                  <>
+                    <p className="text-blue-900 font-semibold mb-4">
+                      📊 No members yet? Add demo data to test the dashboard!
+                    </p>
+                    <button
+                      onClick={addDemoData}
+                      className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
+                    >
+                      ➕ Add 27 Demo Users
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-blue-900 font-semibold mb-4">
+                      ⚠️ You have {members.length} members in the database
+                    </p>
+                    <button
+                      onClick={deleteAllDemoData}
+                      className="w-full py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
+                    >
+                      🗑️ Delete All Demo Data
+                    </button>
+                  </>
+                )}
+                <p className="text-xs text-blue-700 mt-3">
+                  💡 Use demo data to test. Delete before going live!
+                </p>
+              </div>
 
               {/* Recent Members Table */}
               <div className="bg-white rounded-lg shadow p-6">
