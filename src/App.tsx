@@ -46,10 +46,10 @@ function App() {
       navigate(`/admin/${adminPage}`);
     } else if (step > 0) {
       navigate(`/admission/step-${step}`);
-    } else {
+    } else if (!location.hash.includes('/admin')) {
       navigate('/');
     }
-  }, [step, isAdmin, adminPage, navigate]);
+  }, [step, isAdmin, adminPage, navigate, location]);
 
   // Load members from Firestore
   useEffect(() => {
