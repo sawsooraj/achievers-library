@@ -2761,55 +2761,66 @@ function App() {
             </button>
             <button
               onClick={async () => {
-                const agreeCheckbox = document.getElementById('agree') as HTMLInputElement;
-                if (!agreeCheckbox || !agreeCheckbox.checked) {
-                  alert('Please agree to Terms & Conditions');
-                  return;
-                }
-
-                if (paymentMethod === 'upi') {
-                  if (!upiScreenshot) {
-                    alert('Please upload UPI payment screenshot');
+                try {
+                  const agreeCheckbox = document.getElementById('agree') as HTMLInputElement;
+                  if (!agreeCheckbox || !agreeCheckbox.checked) {
+                    alert('Please agree to Terms & Conditions');
                     return;
                   }
-                  if (!utrNumber.trim()) {
-                    alert('Please enter UTR/Transaction ID');
-                    return;
+
+                  if (paymentMethod === 'upi') {
+                    if (!upiScreenshot) {
+                      alert('Please upload UPI payment screenshot');
+                      return;
+                    }
+                    if (!utrNumber.trim()) {
+                      alert('Please enter UTR/Transaction ID');
+                      return;
+                    }
                   }
+
+                  const bookingId = `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+                  const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
+
+                  console.log('📝 Starting submission process...');
+
+                  // Step 1: Generate PDF but don't download yet
+                  console.log('📄 Generating PDF...');
+                  const pdf = await generatePDF(bookingId, amount);
+                  if (pdf) {
+                    setPdfDoc(pdf);
+                    setPdfBookingId(bookingId);
+                    console.log('✅ PDF generated');
+                  }
+
+                  // Step 2: Add member to database
+                  console.log('💾 Saving member to database...');
+                  await addMember({
+                    fullName: formData.fullName.trim(),
+                    email: formData.email.trim().toLowerCase(),
+                    phone: formData.phone.replace(/[^0-9]/g, ''),
+                    dateOfBirth: formData.dateOfBirth,
+                    gender: formData.gender,
+                    currentClass: formData.currentClass.trim(),
+                    targetExam: formData.targetExam.trim(),
+                    schoolCollege: formData.schoolCollege.trim(),
+                    emergencyContactName: formData.emergencyContactName.trim(),
+                    emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
+                    referralSource: formData.referralSource.trim(),
+                    plan: `${selectedPlan} ${selectedDayType}`,
+                    slot: selectedSlot,
+                    startDate: selectedDate,
+                    amount: amount,
+                    paymentMethod: paymentMethod,
+                    upiScreenshot: paymentMethod === 'upi' ? upiScreenshot : null,
+                    utrNumber: paymentMethod === 'upi' ? utrNumber : null,
+                  });
+                  console.log('✅ Member saved. Success modal should show now.');
+                  // Step 3: Success modal will show from addMember
+                } catch (error: any) {
+                  console.error('❌ Submission error:', error);
+                  alert('❌ Error during submission:\n' + (error?.message || String(error)));
                 }
-
-                const bookingId = `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-                const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
-
-                // Step 1: Generate PDF but don't download yet
-                const pdf = await generatePDF(bookingId, amount);
-                if (pdf) {
-                  setPdfDoc(pdf);
-                  setPdfBookingId(bookingId);
-                }
-
-                // Step 2: Add member to database
-                await addMember({
-                  fullName: formData.fullName.trim(),
-                  email: formData.email.trim().toLowerCase(),
-                  phone: formData.phone.replace(/[^0-9]/g, ''),
-                  dateOfBirth: formData.dateOfBirth,
-                  gender: formData.gender,
-                  currentClass: formData.currentClass.trim(),
-                  targetExam: formData.targetExam.trim(),
-                  schoolCollege: formData.schoolCollege.trim(),
-                  emergencyContactName: formData.emergencyContactName.trim(),
-                  emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
-                  referralSource: formData.referralSource.trim(),
-                  plan: `${selectedPlan} ${selectedDayType}`,
-                  slot: selectedSlot,
-                  startDate: selectedDate,
-                  amount: amount,
-                  paymentMethod: paymentMethod,
-                  upiScreenshot: paymentMethod === 'upi' ? upiScreenshot : null,
-                  utrNumber: paymentMethod === 'upi' ? utrNumber : null,
-                });
-                // Step 3: Success modal will show from addMember
               }}
               disabled={isSubmitting}
               className="flex-1 py-3 px-6 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
