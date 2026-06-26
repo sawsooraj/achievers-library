@@ -2745,81 +2745,28 @@ function App() {
 
             <div className="space-y-2">
               <button
-                onClick={async () => {
-                  setIsSubmitting(true);
-                  let savedMember = null;
-                  try {
-                    // Build member data
-                    const memberData = {
-                      fullName: formData.fullName.trim(),
-                      email: formData.email.trim().toLowerCase(),
-                      phone: formData.phone.replace(/[^0-9]/g, ''),
-                      dateOfBirth: formData.dateOfBirth,
-                      gender: formData.gender,
-                      currentClass: formData.currentClass.trim(),
-                      targetExam: formData.targetExam.trim(),
-                      schoolCollege: formData.schoolCollege.trim(),
-                      emergencyContactName: formData.emergencyContactName.trim(),
-                      emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
-                      referralSource: formData.referralSource.trim(),
-                      plan: `${selectedPlan} ${selectedDayType}`,
-                      slot: selectedSlot,
-                      startDate: selectedDate,
-                      amount: amount,
-                      paymentMethod: paymentMethod,
-                    };
-
-                    const newMember = {
-                      id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-                      ...memberData,
-                      createdAt: new Date().toISOString(),
-                      paymentStatus: 'verified',
-                      verified: true,
-                      deleted: false,
-                    };
-
-                    // Save to Firestore
-                    const docRef = await addDoc(collection(db, 'members'), newMember);
-                    savedMember = { ...newMember, docId: docRef.id };
-                    console.log('✅ Saved to Firestore:', docRef.id);
-
-                    // Add to local state immediately (optimistic update)
-                    setMembers([...members, savedMember]);
-                    console.log('✅ Added to local state');
-
-                    // Generate PDF
-                    generatePDF(bookingId, amount);
-
-                    // Reset form
-                    resetForm();
-
-                    // Show success and redirect
-                    alert(`✅ Admission Confirmed!\nYour ID: ${newMember.id}`);
-                    setTimeout(() => navigate('/'), 500);
-                  } catch (error) {
-                    console.error('❌ Firestore Error:', error);
-                    // If Firestore fails, still add to local state so admin sees it
-                    if (savedMember === null) {
-                      const fallbackMember = {
-                        id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-                        fullName: formData.fullName.trim(),
-                        email: formData.email.trim().toLowerCase(),
-                        phone: formData.phone.replace(/[^0-9]/g, ''),
-                        plan: `${selectedPlan} ${selectedDayType}`,
-                        slot: selectedSlot,
-                        amount: amount,
-                        createdAt: new Date().toISOString(),
-                        paymentStatus: 'verified',
-                        verified: true,
-                        deleted: false,
-                      };
-                      setMembers([...members, fallbackMember]);
-                    }
-                    alert('✅ Admission Saved!\n❌ (Firestore sync issue, but data is saved locally)');
-                    setTimeout(() => navigate('/'), 500);
-                  } finally {
-                    setIsSubmitting(false);
-                  }
+                onClick={() => {
+                  generatePDF(bookingId, amount);
+                  addMember({
+                    fullName: formData.fullName.trim(),
+                    email: formData.email.trim().toLowerCase(),
+                    phone: formData.phone.replace(/[^0-9]/g, ''),
+                    dateOfBirth: formData.dateOfBirth,
+                    gender: formData.gender,
+                    currentClass: formData.currentClass.trim(),
+                    targetExam: formData.targetExam.trim(),
+                    schoolCollege: formData.schoolCollege.trim(),
+                    emergencyContactName: formData.emergencyContactName.trim(),
+                    emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
+                    referralSource: formData.referralSource.trim(),
+                    plan: `${selectedPlan} ${selectedDayType}`,
+                    slot: selectedSlot,
+                    startDate: selectedDate,
+                    amount: amount,
+                    paymentMethod: paymentMethod,
+                  });
+                  resetForm();
+                  setTimeout(() => navigate('/'), 1000);
                 }}
                 disabled={isSubmitting}
                 className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
