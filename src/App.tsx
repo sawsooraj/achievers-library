@@ -1424,91 +1424,153 @@ function App() {
                   <h2 className="text-2xl font-bold mb-6">Edit Member: {editingMember.fullName}</h2>
 
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
-                      <input
-                        type="text"
-                        value={editFormData.fullName || ''}
-                        onChange={(e) => setEditFormData({...editFormData, fullName: e.target.value})}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
-                      />
+                    {/* Personal Info */}
+                    <div className="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
+                      <h3 className="font-bold text-blue-900 mb-3">Personal Information</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
+                          <input type="text" value={editFormData.fullName || ''} onChange={(e) => setEditFormData({...editFormData, fullName: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Date of Birth</label>
+                          <input type="date" value={editFormData.dateOfBirth || ''} onChange={(e) => setEditFormData({...editFormData, dateOfBirth: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Gender</label>
+                          <select value={editFormData.gender || ''} onChange={(e) => setEditFormData({...editFormData, gender: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
+                            <option value="">Select</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Email</label>
+                          <input type="email" value={editFormData.email || ''} onChange={(e) => setEditFormData({...editFormData, email: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Phone</label>
+                          <input type="tel" value={editFormData.phone || ''} onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
-                      <input
-                        type="email"
-                        value={editFormData.email || ''}
-                        onChange={(e) => setEditFormData({...editFormData, email: e.target.value})}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
-                      />
+                    {/* Address */}
+                    <div className="bg-green-50 p-3 rounded-lg border-l-4 border-green-500">
+                      <h3 className="font-bold text-green-900 mb-3">Address</h3>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Temporary Address</label>
+                          <textarea value={editFormData.temporaryAddress || ''} onChange={(e) => setEditFormData({...editFormData, temporaryAddress: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" rows={2} />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Permanent Address</label>
+                          <textarea value={editFormData.permanentAddress || ''} onChange={(e) => setEditFormData({...editFormData, permanentAddress: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" rows={2} />
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Phone</label>
-                      <input
-                        type="tel"
-                        value={editFormData.phone || ''}
-                        onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
-                      />
+                    {/* Education */}
+                    <div className="bg-purple-50 p-3 rounded-lg border-l-4 border-purple-500">
+                      <h3 className="font-bold text-purple-900 mb-3">Education</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Current Class</label>
+                          <input type="text" value={editFormData.currentClass || ''} onChange={(e) => setEditFormData({...editFormData, currentClass: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">School/College</label>
+                          <input type="text" value={editFormData.schoolCollege || ''} onChange={(e) => setEditFormData({...editFormData, schoolCollege: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Target Exam</label>
+                          <input type="text" value={editFormData.targetExam || ''} onChange={(e) => setEditFormData({...editFormData, targetExam: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Plan</label>
-                      <select
-                        value={editFormData.plan || ''}
-                        onChange={(e) => setEditFormData({...editFormData, plan: e.target.value})}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
-                      >
-                        <option value="">Select a plan</option>
-                        <option value="Monthly Half-day">Monthly Half-day (₹600)</option>
-                        <option value="Monthly Full-day">Monthly Full-day (₹1100)</option>
-                        <option value="Quarterly Half-day">Quarterly Half-day (₹1600)</option>
-                        <option value="Quarterly Full-day">Quarterly Full-day (₹3100)</option>
-                        <option value="Half-yearly Half-day">Half-yearly Half-day (₹3100)</option>
-                        <option value="Half-yearly Full-day">Half-yearly Full-day (₹6000)</option>
-                        <option value="Yearly Half-day">Yearly Half-day (₹5900)</option>
-                        <option value="Yearly Full-day">Yearly Full-day (₹9900)</option>
-                      </select>
+                    {/* Emergency Contact */}
+                    <div className="bg-red-50 p-3 rounded-lg border-l-4 border-red-500">
+                      <h3 className="font-bold text-red-900 mb-3">Emergency Contact</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Contact Person Name</label>
+                          <input type="text" value={editFormData.emergencyContactName || ''} onChange={(e) => setEditFormData({...editFormData, emergencyContactName: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Contact Phone</label>
+                          <input type="tel" value={editFormData.emergencyContactPhone || ''} onChange={(e) => setEditFormData({...editFormData, emergencyContactPhone: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Time Slot</label>
-                      <select
-                        value={editFormData.slot || ''}
-                        onChange={(e) => setEditFormData({...editFormData, slot: e.target.value})}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
-                      >
-                        <option value="">Select a slot</option>
-                        <option value="9am-3pm">9am - 3pm</option>
-                        <option value="3pm-9pm">3pm - 9pm</option>
-                        <option value="9am-9pm">9am - 9pm (Full Day)</option>
-                      </select>
+                    {/* Membership */}
+                    <div className="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-500">
+                      <h3 className="font-bold text-yellow-900 mb-3">Membership & Payment</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Plan</label>
+                          <select value={editFormData.plan || ''} onChange={(e) => setEditFormData({...editFormData, plan: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
+                            <option value="">Select</option>
+                            <option value="Monthly Half-day">Monthly Half-day</option>
+                            <option value="Monthly Full-day">Monthly Full-day</option>
+                            <option value="Quarterly Half-day">Quarterly Half-day</option>
+                            <option value="Quarterly Full-day">Quarterly Full-day</option>
+                            <option value="Half-yearly Half-day">Half-yearly Half-day</option>
+                            <option value="Half-yearly Full-day">Half-yearly Full-day</option>
+                            <option value="Yearly Half-day">Yearly Half-day</option>
+                            <option value="Yearly Full-day">Yearly Full-day</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Time Slot</label>
+                          <select value={editFormData.slot || ''} onChange={(e) => setEditFormData({...editFormData, slot: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
+                            <option value="">Select</option>
+                            <option value="9am-3pm">9am - 3pm</option>
+                            <option value="3pm-9pm">3pm - 9pm</option>
+                            <option value="9am-9pm">9am - 9pm (Full)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Payment Method</label>
+                          <select value={editFormData.paymentMethod || 'upi'} onChange={(e) => setEditFormData({...editFormData, paymentMethod: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
+                            <option value="upi">UPI</option>
+                            <option value="cash">Cash</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Amount Paid (₹)</label>
+                          <input type="number" value={editFormData.amount || 0} onChange={(e) => setEditFormData({...editFormData, amount: Number(e.target.value)})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Payment Status</label>
+                          <select value={editFormData.paymentStatus || 'pending'} onChange={(e) => setEditFormData({...editFormData, paymentStatus: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
+                            <option value="pending">⏳ Pending</option>
+                            <option value="verified">✅ Verified</option>
+                            <option value="rejected">❌ Rejected</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">UTR/Reference ID</label>
+                          <input type="text" value={editFormData.utrNumber || ''} onChange={(e) => setEditFormData({...editFormData, utrNumber: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Payment Status</label>
-                      <select
-                        value={editFormData.paymentStatus || 'pending'}
-                        onChange={(e) => setEditFormData({...editFormData, paymentStatus: e.target.value})}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="verified">Verified</option>
-                        <option value="rejected">Rejected</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">Notes</label>
-                      <textarea
-                        value={editFormData.notes || ''}
-                        onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
-                        placeholder="Add any admin notes about this member..."
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
-                        rows={3}
-                      />
+                    {/* Other Info */}
+                    <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-400">
+                      <h3 className="font-bold text-gray-900 mb-3">Other Information</h3>
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Referral Source</label>
+                          <input type="text" value={editFormData.referralSource || ''} onChange={(e) => setEditFormData({...editFormData, referralSource: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-1">Admin Notes</label>
+                          <textarea value={editFormData.notes || ''} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} placeholder="Add any admin notes..." className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" rows={2} />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
