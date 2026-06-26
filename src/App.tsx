@@ -2234,7 +2234,7 @@ function App() {
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h1 className="text-3xl font-bold">Choose Membership Plan</h1>
+              <h1 className="text-3xl font-bold">Choose Membership Plan <span className="text-red-600">*</span></h1>
               <span className="text-blue-600 font-bold">Step 3/6</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -2245,7 +2245,7 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {Object.entries(PLANS).map(([plan, prices]: any) => (
               <div key={plan}>
-                <h3 className="font-bold text-lg mb-4">{plan}</h3>
+                <h3 className="font-bold text-lg mb-4">{plan} <span className="text-red-600">*</span></h3>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => {
@@ -2327,7 +2327,7 @@ function App() {
         <div className="max-w-2xl mx-auto">
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h1 className="text-3xl font-bold">Select Slot & Date</h1>
+              <h1 className="text-3xl font-bold">Select Slot & Date <span className="text-red-600">*</span></h1>
               <span className="text-blue-600 font-bold">Step 4/6</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -2337,7 +2337,7 @@ function App() {
 
           <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 space-y-6">
             <div>
-              <h3 className="font-bold mb-4">Select Time Slot</h3>
+              <h3 className="font-bold mb-4">Select Time Slot <span className="text-red-600">*</span></h3>
               <div className="space-y-2">
                 {selectedDayType === 'Half-day' ? (
                   <>
@@ -2381,7 +2381,7 @@ function App() {
             </div>
 
             <div>
-              <h3 className="font-bold mb-4">Select Start Date</h3>
+              <h3 className="font-bold mb-4">Select Start Date <span className="text-red-600">*</span></h3>
               <div className="relative">
                 <input
                   type="date"
@@ -2460,7 +2460,7 @@ function App() {
             </div>
 
             <div>
-              <h3 className="font-bold text-lg mb-4">Select Payment Method</h3>
+              <h3 className="font-bold text-lg mb-4">Select Payment Method <span className="text-red-600">*</span></h3>
               <div className="space-y-3">
                 <div
                   onClick={() => setPaymentMethod('cash')}
@@ -2505,7 +2505,7 @@ function App() {
             <div className="flex items-center">
               <input type="checkbox" id="agree" className="mr-2" />
               <label htmlFor="agree" className="text-sm">
-                I agree to Terms & Conditions and have read Library Rules
+                I agree to Terms & Conditions and have read Library Rules <span className="text-red-600">*</span>
               </label>
             </div>
           </div>
