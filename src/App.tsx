@@ -26,6 +26,14 @@ function App() {
     fullName: '',
     email: '',
     phone: '',
+    dateOfBirth: '',
+    gender: '',
+    currentClass: '',
+    targetExam: '',
+    schoolCollege: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    referralSource: '',
   });
   const [selectedPlan, setSelectedPlan] = useState('');
   const [selectedDayType, setSelectedDayType] = useState('');
@@ -2013,6 +2021,85 @@ function App() {
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
                 />
               </div>
+              <div>
+                <label className="block font-semibold mb-2">Date of Birth</label>
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-2">Gender</label>
+                <select
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold mb-2">Current Class/Year</label>
+                <select
+                  name="currentClass"
+                  value={formData.currentClass}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                >
+                  <option value="">Select Class/Year</option>
+                  <option value="8th">8th</option>
+                  <option value="9th">9th</option>
+                  <option value="10th">10th</option>
+                  <option value="11th">11th</option>
+                  <option value="12th">12th</option>
+                  <option value="B.Tech Y1">B.Tech Year 1</option>
+                  <option value="B.Tech Y2">B.Tech Year 2</option>
+                  <option value="B.Tech Y3">B.Tech Year 3</option>
+                  <option value="B.Tech Y4">B.Tech Year 4</option>
+                  <option value="Masters">Masters</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold mb-2">School/College Name</label>
+                <input
+                  type="text"
+                  name="schoolCollege"
+                  value={formData.schoolCollege}
+                  onChange={handleInputChange}
+                  placeholder="Enter your school or college name"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-2">Target Exam/Purpose</label>
+                <select
+                  name="targetExam"
+                  value={formData.targetExam}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                >
+                  <option value="">Select Target Exam/Purpose</option>
+                  <option value="JEE Main">JEE Main</option>
+                  <option value="JEE Advanced">JEE Advanced</option>
+                  <option value="NEET">NEET</option>
+                  <option value="12th Board">12th Board Exam</option>
+                  <option value="10th Board">10th Board Exam</option>
+                  <option value="Gate Exam">GATE Exam</option>
+                  <option value="CAT">CAT Exam</option>
+                  <option value="Placement Prep">Placement Preparation</option>
+                  <option value="General Study">General Study</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
             </div>
             <div className="flex gap-4 mt-8">
               <button
@@ -2034,18 +2121,100 @@ function App() {
     );
   }
 
-  // STEP 2: MEMBERSHIP PLAN
+  // STEP 2: EMERGENCY CONTACT & REFERRAL
   if (step === 2) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h1 className="text-3xl font-bold">Emergency Contact & Source</h1>
+              <span className="text-blue-600 font-bold">Step 2/6</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '33%' }}></div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+            <h2 className="text-2xl font-bold mb-6">Contact & Source Information</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block font-semibold mb-2">Emergency Contact Name</label>
+                <input
+                  type="text"
+                  name="emergencyContactName"
+                  value={formData.emergencyContactName}
+                  onChange={handleInputChange}
+                  placeholder="Parent/Guardian name"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-2">Emergency Contact Phone</label>
+                <input
+                  type="tel"
+                  name="emergencyContactPhone"
+                  value={formData.emergencyContactPhone}
+                  onChange={handleInputChange}
+                  placeholder="+91 XXXXXXXXXX"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-2">How did you hear about us?</label>
+                <select
+                  name="referralSource"
+                  value={formData.referralSource}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                >
+                  <option value="">Select Source</option>
+                  <option value="Google">Google Search</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Facebook">Facebook</option>
+                  <option value="Friend">Friend Referral</option>
+                  <option value="Family">Family Member</option>
+                  <option value="School">School Notice Board</option>
+                  <option value="College">College Notice Board</option>
+                  <option value="Poster">Local Poster/Flyer</option>
+                  <option value="Social Media">Other Social Media</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-4 mt-8">
+              <button
+                onClick={() => setStep(1)}
+                className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => setStep(3)}
+                className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // STEP 3: MEMBERSHIP PLAN (was Step 2)
+  if (step === 3) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-3xl font-bold">Choose Membership Plan</h1>
-              <span className="text-blue-600 font-bold">Step 2/5</span>
+              <span className="text-blue-600 font-bold">Step 3/6</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '40%' }}></div>
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '33%' }}></div>
             </div>
           </div>
 
@@ -2115,7 +2284,7 @@ function App() {
               Back
             </button>
             <button
-              onClick={() => setStep(3)}
+              onClick={() => setStep(4)}
               disabled={!selectedPlan || !selectedDayType}
               className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
@@ -2135,10 +2304,10 @@ function App() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-3xl font-bold">Select Slot & Date</h1>
-              <span className="text-blue-600 font-bold">Step 3/5</span>
+              <span className="text-blue-600 font-bold">Step 4/6</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '60%' }}></div>
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '50%' }}></div>
             </div>
           </div>
 
@@ -2213,13 +2382,13 @@ function App() {
 
           <div className="flex gap-4 mt-6">
             <button
-              onClick={() => setStep(2)}
+              onClick={() => setStep(4)}
               className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
             >
               Back
             </button>
             <button
-              onClick={() => setStep(4)}
+              onClick={() => setStep(6)}
               disabled={!selectedSlot || !selectedDate}
               className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
@@ -2240,10 +2409,10 @@ function App() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-3xl font-bold">Payment</h1>
-              <span className="text-blue-600 font-bold">Step 4/5</span>
+              <span className="text-blue-600 font-bold">Step 5/6</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '80%' }}></div>
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '66%' }}></div>
             </div>
           </div>
 
@@ -2319,13 +2488,13 @@ function App() {
 
           <div className="flex gap-4 mt-6">
             <button
-              onClick={() => setStep(3)}
+              onClick={() => setStep(4)}
               className="flex-1 py-3 px-6 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
             >
               Back
             </button>
             <button
-              onClick={() => setStep(5)}
+              onClick={() => setStep(6)}
               className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
             >
               Next →
@@ -2337,7 +2506,7 @@ function App() {
   }
 
   // STEP 5: CONFIRMATION
-  if (step === 5) {
+  if (step === 6) {
     const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
     const bookingId = `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
@@ -2347,7 +2516,7 @@ function App() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-3xl font-bold text-green-600">✅ Admission Confirmed!</h1>
-              <span className="text-green-600 font-bold">Step 5/5</span>
+              <span className="text-green-600 font-bold">Step 6/6</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div className="bg-green-600 h-2 rounded-full" style={{ width: '100%' }}></div>
