@@ -839,7 +839,9 @@ function App() {
                 Join
               </button>
               <button
-                onClick={() => navigate('/admin/dashboard')}
+                onClick={() => {
+                  window.location.href = '/#/admin/dashboard';
+                }}
                 className="px-3 py-2 text-gray-600 hover:text-blue-600 transition text-lg md:text-xs font-semibold"
                 title="Admin Panel"
               >
