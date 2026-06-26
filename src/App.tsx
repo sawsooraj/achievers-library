@@ -34,11 +34,15 @@ function App() {
   const [paymentMethod, setPaymentMethod] = useState('upi');
 
   // Admin States
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => {
+    const saved = localStorage.getItem('isAdmin');
+    return saved === 'true';
+  });
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
   const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats'>('dashboard');
+  const [previousAdminPage, setPreviousAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats'>('dashboard');
   const [members, setMembers] = useState<any[]>([]);
   const [selectedPaymentForReview, setSelectedPaymentForReview] = useState<any>(null);
   const [paymentReviewNotes, setPaymentReviewNotes] = useState('');
@@ -48,6 +52,11 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [scannerActive, setScannerActive] = useState(false);
   const [selectedMemberDetail, setSelectedMemberDetail] = useState<any>(null);
+
+  // Persist admin login state
+  useEffect(() => {
+    localStorage.setItem('isAdmin', String(isAdmin));
+  }, [isAdmin]);
 
   // Sync URL with step/admin state
   useEffect(() => {
@@ -266,6 +275,18 @@ function App() {
     thankYou: () => `Thank you for your payment! Your membership is now active. Happy studying! 📚`,
     paymentRequest: () => `We didn't receive your payment confirmation. Please share the payment screenshot again. Thanks!`,
     renewal: (date: string) => `Your membership expires on ${date}. Renew now to continue studying! 📚`,
+  };
+
+  // Admin Navigation Functions
+  const goToAdminPage = (page: 'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats') => {
+    if (page !== adminPage) {
+      setPreviousAdminPage(adminPage);
+      setAdminPage(page);
+    }
+  };
+
+  const goBackAdmin = () => {
+    setAdminPage(previousAdminPage);
   };
 
   // Admin Functions
@@ -489,7 +510,7 @@ function App() {
             <div className="w-48 bg-white shadow p-4">
               <nav className="space-y-2">
                 <button
-                  onClick={() => setAdminPage('dashboard')}
+                  onClick={() => goToAdminPage('dashboard')}
                   className={`w-full text-left px-4 py-3 rounded-lg font-semibold ${
                     adminPage === 'dashboard' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
                   }`}
@@ -497,7 +518,7 @@ function App() {
                   📈 Dashboard
                 </button>
                 <button
-                  onClick={() => setAdminPage('scanner')}
+                  onClick={() => goToAdminPage('scanner')}
                   className={`w-full text-left px-4 py-3 rounded-lg font-semibold ${
                     adminPage === 'scanner' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
                   }`}
@@ -505,7 +526,7 @@ function App() {
                   📱 QR Scanner
                 </button>
                 <button
-                  onClick={() => setAdminPage('seats')}
+                  onClick={() => goToAdminPage('seats')}
                   className={`w-full text-left px-4 py-3 rounded-lg font-semibold ${
                     adminPage === 'seats' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
                   }`}
@@ -513,7 +534,7 @@ function App() {
                   🪑 Seats
                 </button>
                 <button
-                  onClick={() => setAdminPage('members')}
+                  onClick={() => goToAdminPage('members')}
                   className={`w-full text-left px-4 py-3 rounded-lg font-semibold ${
                     adminPage === 'members' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
                   }`}
@@ -521,7 +542,7 @@ function App() {
                   👥 Members
                 </button>
                 <button
-                  onClick={() => setAdminPage('payments')}
+                  onClick={() => goToAdminPage('payments')}
                   className={`w-full text-left px-4 py-3 rounded-lg font-semibold ${
                     adminPage === 'payments' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
                   }`}
@@ -529,7 +550,7 @@ function App() {
                   💳 Payments
                 </button>
                 <button
-                  onClick={() => setAdminPage('reminders')}
+                  onClick={() => goToAdminPage('reminders')}
                   className={`w-full text-left px-4 py-3 rounded-lg font-semibold ${
                     adminPage === 'reminders' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
                   }`}
@@ -719,7 +740,7 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-              <button onClick={() => { setAdminPage('dashboard'); setScannedBookingId(''); setScannerActive(false); }} className="text-2xl">←</button>
+              <button onClick={() => { goBackAdmin(); setScannedBookingId(''); setScannerActive(false); }} className="text-2xl">←</button>
               <div className="text-2xl font-bold text-blue-600">📱 QR Scanner</div>
             </div>
           </header>
@@ -820,7 +841,7 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-              <button onClick={() => setAdminPage('dashboard')} className="text-2xl">←</button>
+              <button onClick={() => goBackAdmin()} className="text-2xl">←</button>
               <div className="text-2xl font-bold text-blue-600">👥 Members List</div>
             </div>
           </header>
@@ -903,10 +924,10 @@ function App() {
             </div>
 
             <button
-              onClick={() => setAdminPage('dashboard')}
-              className="mt-6 px-6 py-3 bg-blue-600 text-white font-bold rounded-lg"
+              onClick={() => goBackAdmin()}
+              className="mt-6 px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
             >
-              Back to Dashboard
+              ← Back
             </button>
 
             {/* Member Detail Modal */}
@@ -1118,7 +1139,7 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-              <button onClick={() => setAdminPage('dashboard')} className="text-2xl">←</button>
+              <button onClick={() => goBackAdmin()} className="text-2xl">←</button>
               <div className="text-2xl font-bold text-blue-600">💳 Payment Verification</div>
             </div>
           </header>
@@ -1395,10 +1416,10 @@ function App() {
             </div>
 
             <button
-              onClick={() => setAdminPage('dashboard')}
+              onClick={() => goBackAdmin()}
               className="mt-8 px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
             >
-              ← Back to Dashboard
+              ← Back
             </button>
           </div>
 
@@ -1487,7 +1508,7 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-              <button onClick={() => setAdminPage('dashboard')} className="text-2xl">←</button>
+              <button onClick={() => goBackAdmin()} className="text-2xl">←</button>
               <div className="text-2xl font-bold text-blue-600">📨 Send Reminders</div>
             </div>
           </header>
