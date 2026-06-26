@@ -51,6 +51,8 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingMember, setIsSavingMember] = useState(false);
   const [debugError, setDebugError] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMemberId, setSuccessMemberId] = useState<string | null>(null);
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(() => {
@@ -413,7 +415,10 @@ function App() {
       const docRef = await addDoc(collection(db, 'members'), newMember);
       console.log('✅ Saved to Firestore ID:', docRef.id);
       setDebugError(`✅ Saved: ${docRef.id}`);
-      alert('✅ Admission submitted! ID: ' + newMember.id);
+
+      // Show success modal
+      setSuccessMemberId(newMember.id);
+      setShowSuccessModal(true);
     } catch (error: any) {
       const errorMsg = error?.message || String(error);
       console.error('❌ Error:', errorMsg);
@@ -2773,8 +2778,6 @@ function App() {
                     amount: amount,
                     paymentMethod: paymentMethod,
                   });
-                  navigate('/');
-                  setTimeout(() => resetForm(), 500);
                 }}
                 disabled={isSubmitting}
                 className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2792,6 +2795,41 @@ function App() {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // SUCCESS MODAL - shown after member is saved
+  if (showSuccessModal) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-white flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+          <div className="text-6xl mb-6">🎉</div>
+          <h1 className="text-3xl font-bold text-green-600 mb-2">Admission Confirmed!</h1>
+          <p className="text-gray-600 mb-6 text-lg">Your membership is now active</p>
+
+          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-8">
+            <p className="text-sm text-gray-600 mb-2">Your Membership ID</p>
+            <p className="text-2xl font-bold text-green-600">{successMemberId}</p>
+          </div>
+
+          <p className="text-gray-600 mb-6">
+            ✅ Your data has been saved<br />
+            ✅ Admission PDF downloaded<br />
+            ✅ Ready to start studying!
+          </p>
+
+          <button
+            onClick={() => {
+              setShowSuccessModal(false);
+              navigate('/');
+              setTimeout(() => resetForm(), 500);
+            }}
+            className="w-full py-3 px-6 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition text-lg"
+          >
+            🏠 Back to Home
+          </button>
         </div>
       </div>
     );
