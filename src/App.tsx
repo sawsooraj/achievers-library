@@ -34,7 +34,6 @@ function App() {
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(false);
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders'>('dashboard');
   const [members, setMembers] = useState<any[]>([]);
@@ -341,8 +340,8 @@ function App() {
     totalRevenue: members.reduce((sum, m) => sum + (m.amount || 0), 0),
   });
 
-  // ADMIN LOGIN PAGE
-  if (showAdminLogin) {
+  // ADMIN LOGIN PAGE (show when on /admin path but not yet logged in)
+  if (!isAdmin && location.pathname.includes('/admin')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4">
         <motion.div
@@ -363,8 +362,6 @@ function App() {
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
                 setIsAdmin(true);
-                setShowAdminLogin(false);
-                setAdminPage('dashboard');
                 setAdminPassword('');
               }
             }}
@@ -376,17 +373,15 @@ function App() {
           <button
             onClick={() => {
               setIsAdmin(true);
-              setShowAdminLogin(false);
-              setAdminPage('dashboard');
               setAdminPassword('');
             }}
             className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-lg hover:shadow-lg"
           >
-            Login (Password: admin123)
+            Login
           </button>
 
           <button
-            onClick={() => { setShowAdminLogin(false); setAdminPassword(''); }}
+            onClick={() => { navigate('/'); }}
             className="w-full mt-3 py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
           >
             Back
@@ -451,7 +446,7 @@ function App() {
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
               <div className="text-2xl font-bold text-blue-600">📊 Admin Dashboard</div>
               <button
-                onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); setShowAdminLogin(false); setStep(0); }}
+                onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); setStep(0); }}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
               >
                 Logout
@@ -892,7 +887,7 @@ function App() {
                 Join Now
               </button>
               <button
-                onClick={() => { setIsAdmin(true); setAdminPage('dashboard'); }}
+                onClick={() => { setIsAdmin(false); setAdminPassword(''); setAdminPage('dashboard'); }}
                 className="px-4 py-2 text-gray-600 hover:text-blue-600 transition text-xs font-semibold"
                 title="Admin Panel"
               >
