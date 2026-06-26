@@ -62,7 +62,7 @@ function App() {
   const generatePDF = async (bookingId: string, amount: number) => {
     try {
       const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = doc.getPageWidth();
+      const pageWidth = doc.internal.pageSize.getWidth();
       let y = 15;
 
       // Header
@@ -250,9 +250,9 @@ function App() {
   });
 
   // ADMIN PAGES
-  if (isAdmin) {
-    // Admin Login
-    if (!isAdmin) {
+  if (isAdmin && adminPage) {
+    // Admin Dashboard - Main
+    if ((adminPage as string) === 'dashboard') {
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4">
           <motion.div
@@ -426,7 +426,7 @@ function App() {
     }
 
     // QR Scanner Page
-    if (adminPage === 'scanner') {
+    if ((adminPage as string) === 'scanner') {
       return (
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
@@ -483,7 +483,7 @@ function App() {
     }
 
     // Members Page
-    if (adminPage === 'members') {
+    if ((adminPage as string) === 'members') {
       const filtered = members.filter(m =>
         m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.id.includes(searchQuery)
@@ -558,7 +558,7 @@ function App() {
     }
 
     // Payments Page
-    if (adminPage === 'payments') {
+    if ((adminPage as string) === 'payments') {
       const pending = members.filter(m => m.paymentStatus === 'pending');
 
       return (
@@ -631,7 +631,7 @@ function App() {
     }
 
     // Reminders Page
-    if (adminPage === 'reminders') {
+    if ((adminPage as string) === 'reminders') {
       return (
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
@@ -1354,7 +1354,7 @@ function App() {
 
   // STEP 4: PAYMENT
   if (step === 4) {
-    const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as any] || 0;
+    const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
         <div className="max-w-2xl mx-auto">
@@ -1459,7 +1459,7 @@ function App() {
 
   // STEP 5: CONFIRMATION
   if (step === 5) {
-    const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as any] || 0;
+    const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
     const bookingId = `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
     return (
