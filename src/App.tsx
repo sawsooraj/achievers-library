@@ -34,6 +34,7 @@ function App() {
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders'>('dashboard');
   const [members, setMembers] = useState<any[]>([]);
@@ -219,6 +220,7 @@ function App() {
       setIsAdmin(true);
       setAdminPassword('');
       setAdminPage('dashboard');
+      setShowAdminLogin(false);
     } else {
       alert('❌ Invalid password!\n\n✅ Try one of these:\n• admin123\n• admin\n• library');
     }
@@ -342,8 +344,8 @@ function App() {
     totalRevenue: members.reduce((sum, m) => sum + (m.amount || 0), 0),
   });
 
-  // ADMIN LOGIN PAGE (show when on /admin path but not yet logged in)
-  if (!isAdmin && (location.pathname.includes('/admin') || location.hash.includes('/admin'))) {
+  // ADMIN LOGIN PAGE (show when login button is clicked)
+  if (showAdminLogin && !isAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4">
         <motion.div
@@ -379,7 +381,7 @@ function App() {
           </button>
 
           <button
-            onClick={() => { navigate('/'); }}
+            onClick={() => setShowAdminLogin(false)}
             className="w-full mt-3 py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
           >
             Back
@@ -841,13 +843,13 @@ function App() {
               >
                 Join
               </button>
-              <a
-                href="/#/admin/dashboard"
-                className="px-3 py-2 text-gray-600 hover:text-blue-600 transition text-lg md:text-xs font-semibold cursor-pointer"
+              <button
+                onClick={() => setShowAdminLogin(!showAdminLogin)}
+                className="px-3 py-2 text-gray-600 hover:text-blue-600 transition text-lg md:text-xs font-semibold"
                 title="Admin Panel"
               >
                 🔐
-              </a>
+              </button>
             </nav>
           </div>
         </header>
