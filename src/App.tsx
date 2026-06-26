@@ -2739,27 +2739,56 @@ function App() {
 
             <div className="space-y-2">
               <button
-                onClick={() => {
-                  generatePDF(bookingId, amount);
-                  // Save member to database
-                  addMember({
-                    fullName: formData.fullName.trim(),
-                    email: formData.email.trim().toLowerCase(),
-                    phone: formData.phone.replace(/[^0-9]/g, ''),
-                    dateOfBirth: formData.dateOfBirth,
-                    gender: formData.gender,
-                    currentClass: formData.currentClass.trim(),
-                    targetExam: formData.targetExam.trim(),
-                    schoolCollege: formData.schoolCollege.trim(),
-                    emergencyContactName: formData.emergencyContactName.trim(),
-                    emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
-                    referralSource: formData.referralSource.trim(),
-                    plan: `${selectedPlan} ${selectedDayType}`,
-                    slot: selectedSlot,
-                    startDate: selectedDate,
-                    amount: amount,
-                    paymentMethod: paymentMethod,
-                  });
+                onClick={async () => {
+                  setIsSubmitting(true);
+                  try {
+                    // Save member to Firestore first
+                    const memberData = {
+                      fullName: formData.fullName.trim(),
+                      email: formData.email.trim().toLowerCase(),
+                      phone: formData.phone.replace(/[^0-9]/g, ''),
+                      dateOfBirth: formData.dateOfBirth,
+                      gender: formData.gender,
+                      currentClass: formData.currentClass.trim(),
+                      targetExam: formData.targetExam.trim(),
+                      schoolCollege: formData.schoolCollege.trim(),
+                      emergencyContactName: formData.emergencyContactName.trim(),
+                      emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
+                      referralSource: formData.referralSource.trim(),
+                      plan: `${selectedPlan} ${selectedDayType}`,
+                      slot: selectedSlot,
+                      startDate: selectedDate,
+                      amount: amount,
+                      paymentMethod: paymentMethod,
+                    };
+
+                    const newMember = {
+                      id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+                      ...memberData,
+                      createdAt: new Date().toISOString(),
+                      paymentStatus: 'verified',
+                      verified: true,
+                    };
+
+                    // Save to Firestore
+                    const docRef = await addDoc(collection(db, 'members'), newMember);
+                    console.log('✅ Saved to Firestore:', docRef.id);
+
+                    // Generate PDF
+                    generatePDF(bookingId, amount);
+
+                    // Reset form
+                    resetForm();
+
+                    // Show success and redirect
+                    alert(`✅ Admission Confirmed!\nYour ID: ${newMember.id}\nRedirecting to home...`);
+                    navigate('/');
+                  } catch (error) {
+                    console.error('❌ Error:', error);
+                    alert('❌ Failed to save. Error: ' + (error as any).message);
+                  } finally {
+                    setIsSubmitting(false);
+                  }
                 }}
                 disabled={isSubmitting}
                 className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
