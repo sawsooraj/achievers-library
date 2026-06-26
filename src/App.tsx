@@ -30,7 +30,7 @@ function App() {
   // Admin States
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
-  const [adminPage, setAdminPage] = useState('dashboard');
+  const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders'>('dashboard');
   const [members, setMembers] = useState<any[]>([]);
   const [scannedBookingId, setScannedBookingId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');

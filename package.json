@@ -12,6 +12,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "date-fns": "^4.4.0",
+    "firebase": "^12.15.0",
     "framer-motion": "^12.40.0",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
