@@ -828,24 +828,24 @@ function App() {
                 <div className="text-xs text-gray-500 font-semibold">Premium Study Space</div>
               </div>
             </div>
-            <nav className="hidden md:flex gap-8 text-sm font-medium items-center">
-              <a href="#features" className="text-gray-600 hover:text-blue-600 transition">Features</a>
-              <a href="#pricing" className="text-gray-600 hover:text-blue-600 transition">Plans</a>
-              <a href="#contact" className="text-gray-600 hover:text-blue-600 transition">Contact</a>
+            <nav className="flex gap-2 md:gap-8 text-sm font-medium items-center">
+              <a href="#features" className="hidden md:inline text-gray-600 hover:text-blue-600 transition">Features</a>
+              <a href="#pricing" className="hidden md:inline text-gray-600 hover:text-blue-600 transition">Plans</a>
+              <a href="#contact" className="hidden md:inline text-gray-600 hover:text-blue-600 transition">Contact</a>
               <button
                 onClick={() => setStep(1)}
-                className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:shadow-lg transition"
+                className="px-4 md:px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:shadow-lg transition text-xs md:text-sm"
               >
-                Join Now
+                Join
               </button>
               <button
                 onClick={() => {
                   setIsAdmin(false);
                   setAdminPassword('');
                   setAdminPage('dashboard');
-                  navigate('/admin/dashboard');
+                  window.location.hash = '#/admin/dashboard';
                 }}
-                className="px-4 py-2 text-gray-600 hover:text-blue-600 transition text-xs font-semibold"
+                className="px-3 py-2 text-gray-600 hover:text-blue-600 transition text-lg md:text-xs font-semibold"
                 title="Admin Panel"
               >
                 🔐
