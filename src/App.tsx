@@ -2745,9 +2745,9 @@ function App() {
 
             <div className="space-y-2">
               <button
-                onClick={() => {
+                onClick={async () => {
                   generatePDF(bookingId, amount);
-                  addMember({
+                  await addMember({
                     fullName: formData.fullName.trim(),
                     email: formData.email.trim().toLowerCase(),
                     phone: formData.phone.replace(/[^0-9]/g, ''),
@@ -2766,7 +2766,7 @@ function App() {
                     paymentMethod: paymentMethod,
                   });
                   resetForm();
-                  setTimeout(() => navigate('/'), 1000);
+                  navigate('/');
                 }}
                 disabled={isSubmitting}
                 className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
