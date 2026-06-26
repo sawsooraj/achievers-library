@@ -1355,26 +1355,39 @@ function App() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <h4 className="font-bold text-gray-900 mb-3">Occupied Seats ({slotMembers.length}):</h4>
-                      {slotMembers.length === 0 ? (
-                        <p className="text-gray-500 text-sm italic">No members in this slot yet</p>
-                      ) : (
-                        <div className="space-y-2 max-h-80 overflow-y-auto">
-                          {slotMembers.map((member, idx) => (
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-4">Seat Grid (23 total):</h4>
+                      <div className="grid grid-cols-6 gap-2">
+                        {Array.from({ length: slot.capacity }).map((_, seatNum) => {
+                          const member = slotMembers.find((m, idx) => idx === seatNum);
+                          return (
                             <button
-                              key={member.id}
-                              onClick={() => setSelectedMemberDetail(member)}
-                              className="w-full text-left p-3 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-lg border border-blue-300 transition cursor-pointer"
+                              key={seatNum}
+                              onClick={() => member && setSelectedMemberDetail(member)}
+                              className={`aspect-square rounded-lg font-bold text-sm flex flex-col items-center justify-center transition transform hover:scale-105 ${
+                                member
+                                  ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-2 border-blue-700 cursor-pointer hover:from-blue-600 hover:to-blue-700'
+                                  : 'bg-gradient-to-br from-green-400 to-emerald-500 text-white border-2 border-green-600'
+                              }`}
+                              title={member ? `${member.fullName}` : 'Empty'}
                             >
-                              <div className="font-semibold text-gray-900">Seat {idx + 1}</div>
-                              <div className="text-sm text-gray-700">{member.fullName}</div>
-                              <div className="text-xs text-gray-600">{member.email}</div>
-                              <div className="text-xs font-semibold text-blue-700 mt-1">{member.plan}</div>
+                              <div className="text-xs">#{seatNum + 1}</div>
+                              {member && <div className="text-xs truncate">{member.fullName.split(' ')[0]}</div>}
                             </button>
-                          ))}
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex gap-4 mt-6">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-gradient-to-br from-green-400 to-emerald-500 rounded border-2 border-green-600"></div>
+                          <span className="text-sm font-semibold text-gray-700">Available ({availableSeats})</span>
                         </div>
-                      )}
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded border-2 border-blue-700"></div>
+                          <span className="text-sm font-semibold text-gray-700">Occupied ({slotMembers.length})</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
