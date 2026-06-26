@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 import { db } from './firebase';
-import { collection, addDoc, getDocs, updateDoc, doc, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
 import './index.css';
 
 const PLANS = {
