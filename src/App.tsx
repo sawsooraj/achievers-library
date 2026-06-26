@@ -2112,7 +2112,7 @@ function App() {
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-2">Gender</label>
+                <label className="block font-semibold mb-2">Gender <span className="text-red-500">*</span></label>
                 <select
                   name="gender"
                   value={formData.gender}
