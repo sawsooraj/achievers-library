@@ -921,6 +921,11 @@ function App() {
                         <div className="flex gap-2">
                           <button
                             onClick={async () => {
+                              // FIX #208: Prevent double-accepting member
+                              if (member.membershipId) {
+                                alert('⚠️ This member already has a Membership ID: ' + member.membershipId);
+                                return;
+                              }
                               try {
                                 const membershipId = `MEM${Date.now()}${Math.floor(Math.random() * 1000)}`;
                                 const memberRef = doc(db, 'members', member.docId);
