@@ -459,11 +459,11 @@ function App() {
 
       y += 8;
 
-      // Booking ID prominently
+      // Membership ID prominently
       doc.setFontSize(11);
       doc.setFont('', 'bold');
       doc.setTextColor(60, 60, 60);
-      doc.text('Booking ID:', 15, y);
+      doc.text('Membership ID:', 15, y);
       doc.setFontSize(13);
       doc.setTextColor(25, 118, 210);
       doc.text(bookingId, pageWidth - 15, y, { align: 'right' });
@@ -4400,7 +4400,7 @@ function App() {
 
             <div className="border border-gray-200 p-6 rounded-lg space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-600">Booking ID</span>
+                <span className="text-gray-600">Membership ID</span>
                 <span className="font-bold text-blue-600">{bookingId}</span>
               </div>
               <div className="flex justify-between">
