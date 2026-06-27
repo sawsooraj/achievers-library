@@ -148,7 +148,10 @@ const getMembershipExpiry = (member: any): Date | null => {
   if (!months) return null;
   const d = new Date(member.startDate);
   if (isNaN(d.getTime())) return null;
+  const day = d.getDate();
   d.setMonth(d.getMonth() + months);
+  // setMonth overflows (e.g. Jan 31 + 1 month -> Mar 3); clamp back to month end.
+  if (d.getDate() < day) d.setDate(0);
   return d;
 };
 
@@ -622,7 +625,9 @@ function App() {
       doc.text(`Timing: ${selectedSlot}`, 15, y);
 
       const validTillDate = new Date(selectedDate);
+      const vtDay = validTillDate.getDate();
       validTillDate.setMonth(validTillDate.getMonth() + (selectedPlan === 'Monthly' ? 1 : selectedPlan === 'Quarterly' ? 3 : selectedPlan === 'Half-yearly' ? 6 : 12));
+      if (validTillDate.getDate() < vtDay) validTillDate.setDate(0); // clamp month-end overflow
 
       y += 5;
       doc.text(`Valid From: ${new Date(selectedDate).toLocaleDateString('en-IN')}`, 15, y);
@@ -1016,11 +1021,14 @@ function App() {
         if (existingEmails.has(email) || existingPhones.has(phone)) { skipped++; continue; }
         const id = (cell('Membership ID') || generateMembershipId(existingIds));
         existingIds.push(id); existingEmails.add(email); existingPhones.add(phone);
+        // Normalise status (so "Verified" etc. matches) and strip ₹/commas from amount.
+        const rawStatus = cell('Payment Status').toLowerCase().trim();
+        const paymentStatus = ['verified', 'pending', 'rejected'].includes(rawStatus) ? rawStatus : 'pending';
         const member = {
           id, fullName, email, phone,
           plan: cell('Plan'), slot: cell('Slot'),
-          amount: Number(cell('Amount')) || 0,
-          paymentStatus: cell('Payment Status') || 'pending',
+          amount: Number(cell('Amount').replace(/[^0-9.]/g, '')) || 0,
+          paymentStatus,
           paymentUTR: cell('UTR'), startDate: cell('Start Date'),
           gender: cell('Gender'), dateOfBirth: cell('DOB'),
           emergencyContactName: cell('Emergency Contact'), emergencyContactPhone: cell('Emergency Phone'),
@@ -1081,7 +1089,8 @@ function App() {
       totalMembers: active.length,
       pendingPayments: active.filter(m => m.paymentStatus === 'pending').length,
       verifiedMembers: active.filter(m => m.paymentStatus === 'verified').length,
-      totalRevenue: active.reduce((sum, m) => sum + (m.amount || 0), 0),
+      // Only VERIFIED payments count as collected revenue (not pending/rejected).
+      totalRevenue: active.filter(m => m.paymentStatus === 'verified').reduce((sum, m) => sum + (m.amount || 0), 0),
     };
   }, [members]);
 
@@ -1278,7 +1287,7 @@ function App() {
                   <div className="text-3xl font-bold text-blue-600 mt-1">{stats.verifiedMembers}</div>
                 </div>
                 <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
-                  <div className="text-gray-600 text-xs font-semibold">TODAY'S REVENUE</div>
+                  <div className="text-gray-600 text-xs font-semibold">COLLECTED REVENUE</div>
                   <div className="text-3xl font-bold text-purple-600 mt-1">₹{stats.totalRevenue}</div>
                 </div>
               </div>
@@ -1333,7 +1342,10 @@ function App() {
 
                               ongoingOperationsRef.current.add(member.docId);
                               try {
-                                const membershipId = `MEM${Date.now()}${Math.floor(Math.random() * 1000)}`;
+                                // Reuse the member's existing short id as the membership
+                                // id, so the receipt, welcome message and admin all match
+                                // (no second, longer MEM number).
+                                const membershipId = member.id;
                                 const memberRef = doc(db, 'members', member.docId);
                                 // FIX #213: Retry on failure
                                 await retryOperation(() => updateDoc(memberRef, { membershipId }));
@@ -1482,37 +1494,6 @@ function App() {
                 <p className="text-gray-500 text-center py-4">Send renewal reminders when memberships are expiring soon</p>
               </div>
 
-              {/* Demo Data */}
-              <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
-                {members.length === 0 ? (
-                  <>
-                    <p className="text-blue-900 font-semibold mb-4">
-                      📊 No members yet? Add demo data to test!
-                    </p>
-                    <button
-                      onClick={addDemoData}
-                      className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
-                    >
-                      ➕ Add 27 Demo Members
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-blue-900 font-semibold mb-4">
-                      ⚠️ Total members: {members.length}
-                    </p>
-                    <button
-                      onClick={deleteAllDemoData}
-                      className="w-full py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
-                    >
-                      🗑️ Delete All
-                    </button>
-                  </>
-                )}
-                <p className="text-xs text-blue-700 mt-3">
-                  💡 Delete demo data before going live!
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -2266,15 +2247,15 @@ function App() {
                       <div className="grid grid-cols-2 gap-3">
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
-                          <input type="text" value={editFormData.fullName || ''} onChange={(e) => setEditFormData({...editFormData, fullName: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none text-sm" />
+                          <input type="text" value={editFormData.fullName || ''} onChange={(e) => setEditFormData(prev => ({...prev, fullName: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Date of Birth</label>
-                          <input type="date" value={editFormData.dateOfBirth || ''} onChange={(e) => setEditFormData({...editFormData, dateOfBirth: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="date" value={editFormData.dateOfBirth || ''} onChange={(e) => setEditFormData(prev => ({...prev, dateOfBirth: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Gender</label>
-                          <select value={editFormData.gender || ''} onChange={(e) => setEditFormData({...editFormData, gender: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
+                          <select value={editFormData.gender || ''} onChange={(e) => setEditFormData(prev => ({...prev, gender: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
                             <option value="">Select</option>
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
@@ -2283,13 +2264,13 @@ function App() {
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Email</label>
-                          <input type="email" value={editFormData.email || ''} onChange={(e) => setEditFormData({...editFormData, email: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="email" value={editFormData.email || ''} onChange={(e) => setEditFormData(prev => ({...prev, email: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Phone</label>
                           <input type="tel" value={editFormData.phone || ''} onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
-                            setEditFormData({...editFormData, phone: val});
+                            setEditFormData(prev => ({...prev, phone: val}));
                           }} maxLength="10" className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
@@ -2301,27 +2282,27 @@ function App() {
                       <div className="grid grid-cols-2 gap-2 mb-4">
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Street Address</label>
-                          <input type="text" value={editFormData.tempStreet || ''} onChange={(e) => setEditFormData({...editFormData, tempStreet: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.tempStreet || ''} onChange={(e) => setEditFormData(prev => ({...prev, tempStreet: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">City</label>
                           <input type="text" value={editFormData.tempCity || ''} onChange={(e) => {
                             const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-                            setEditFormData({...editFormData, tempCity: val});
+                            setEditFormData(prev => ({...prev, tempCity: val}));
                           }} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">State</label>
                           <input type="text" value={editFormData.tempState || ''} onChange={(e) => {
                             const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-                            setEditFormData({...editFormData, tempState: val});
+                            setEditFormData(prev => ({...prev, tempState: val}));
                           }} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Pin Code</label>
                           <input type="text" value={editFormData.tempPincode || ''} onChange={(e) => {
                           const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-                          setEditFormData({...editFormData, tempPincode: val});
+                          setEditFormData(prev => ({...prev, tempPincode: val}));
                         }} maxLength="6" className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
@@ -2330,27 +2311,27 @@ function App() {
                       <div className="grid grid-cols-2 gap-2">
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Street Address</label>
-                          <input type="text" value={editFormData.permStreet || ''} onChange={(e) => setEditFormData({...editFormData, permStreet: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.permStreet || ''} onChange={(e) => setEditFormData(prev => ({...prev, permStreet: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">City</label>
                           <input type="text" value={editFormData.permCity || ''} onChange={(e) => {
                             const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-                            setEditFormData({...editFormData, permCity: val});
+                            setEditFormData(prev => ({...prev, permCity: val}));
                           }} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">State</label>
                           <input type="text" value={editFormData.permState || ''} onChange={(e) => {
                             const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-                            setEditFormData({...editFormData, permState: val});
+                            setEditFormData(prev => ({...prev, permState: val}));
                           }} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Pin Code</label>
                           <input type="text" value={editFormData.permPincode || ''} onChange={(e) => {
                           const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-                          setEditFormData({...editFormData, permPincode: val});
+                          setEditFormData(prev => ({...prev, permPincode: val}));
                         }} maxLength="6" className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
@@ -2362,15 +2343,15 @@ function App() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Current Class</label>
-                          <input type="text" value={editFormData.currentClass || ''} onChange={(e) => setEditFormData({...editFormData, currentClass: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.currentClass || ''} onChange={(e) => setEditFormData(prev => ({...prev, currentClass: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">School/College</label>
-                          <input type="text" value={editFormData.schoolCollege || ''} onChange={(e) => setEditFormData({...editFormData, schoolCollege: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.schoolCollege || ''} onChange={(e) => setEditFormData(prev => ({...prev, schoolCollege: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Target Exam</label>
-                          <input type="text" value={editFormData.targetExam || ''} onChange={(e) => setEditFormData({...editFormData, targetExam: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.targetExam || ''} onChange={(e) => setEditFormData(prev => ({...prev, targetExam: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
                     </div>
@@ -2381,13 +2362,13 @@ function App() {
                       <div className="grid grid-cols-2 gap-3">
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Contact Person Name</label>
-                          <input type="text" value={editFormData.emergencyContactName || ''} onChange={(e) => setEditFormData({...editFormData, emergencyContactName: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.emergencyContactName || ''} onChange={(e) => setEditFormData(prev => ({...prev, emergencyContactName: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Contact Phone</label>
                           <input type="tel" value={editFormData.emergencyContactPhone || ''} onChange={(e) => {
                             const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
-                            setEditFormData({...editFormData, emergencyContactPhone: val});
+                            setEditFormData(prev => ({...prev, emergencyContactPhone: val}));
                           }} maxLength="10" className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
@@ -2399,7 +2380,7 @@ function App() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Plan</label>
-                          <select value={editFormData.plan || ''} onChange={(e) => setEditFormData({...editFormData, plan: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
+                          <select value={editFormData.plan || ''} onChange={(e) => setEditFormData(prev => ({...prev, plan: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
                             <option value="">Select</option>
                             <option value="Monthly Half-day">Monthly Half-day</option>
                             <option value="Monthly Full-day">Monthly Full-day</option>
@@ -2413,7 +2394,7 @@ function App() {
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Time Slot</label>
-                          <select value={editFormData.slot || ''} onChange={(e) => setEditFormData({...editFormData, slot: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
+                          <select value={editFormData.slot || ''} onChange={(e) => setEditFormData(prev => ({...prev, slot: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
                             <option value="">Select</option>
                             <option value="9am-3pm">9am - 3pm</option>
                             <option value="3pm-9pm">3pm - 9pm</option>
@@ -2422,18 +2403,18 @@ function App() {
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Payment Method</label>
-                          <select value={editFormData.paymentMethod || 'upi'} onChange={(e) => setEditFormData({...editFormData, paymentMethod: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
+                          <select value={editFormData.paymentMethod || 'upi'} onChange={(e) => setEditFormData(prev => ({...prev, paymentMethod: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
                             <option value="upi">UPI</option>
                             <option value="cash">Cash</option>
                           </select>
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Amount Paid (₹)</label>
-                          <input type="number" value={editFormData.amount || 0} onChange={(e) => setEditFormData({...editFormData, amount: Number(e.target.value)})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="number" value={editFormData.amount || 0} onChange={(e) => setEditFormData(prev => ({...prev, amount: Number(e.target.value)}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Payment Status</label>
-                          <select value={editFormData.paymentStatus || 'pending'} onChange={(e) => setEditFormData({...editFormData, paymentStatus: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
+                          <select value={editFormData.paymentStatus || 'pending'} onChange={(e) => setEditFormData(prev => ({...prev, paymentStatus: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm">
                             <option value="pending">⏳ Pending</option>
                             <option value="verified">✅ Verified</option>
                             <option value="rejected">❌ Rejected</option>
@@ -2441,7 +2422,7 @@ function App() {
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">UTR/Reference ID</label>
-                          <input type="text" value={editFormData.paymentUTR ?? editFormData.utrNumber ?? ''} onChange={(e) => setEditFormData({...editFormData, paymentUTR: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.paymentUTR ?? editFormData.utrNumber ?? ''} onChange={(e) => setEditFormData(prev => ({...prev, paymentUTR: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
                     </div>
@@ -2452,11 +2433,11 @@ function App() {
                       <div className="space-y-2">
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Referral Source</label>
-                          <input type="text" value={editFormData.referralSource || ''} onChange={(e) => setEditFormData({...editFormData, referralSource: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.referralSource || ''} onChange={(e) => setEditFormData(prev => ({...prev, referralSource: e.target.value}))} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Admin Notes</label>
-                          <textarea value={editFormData.notes || ''} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} placeholder="Add any admin notes..." className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" rows={2} />
+                          <textarea value={editFormData.notes || ''} onChange={(e) => setEditFormData(prev => ({...prev, notes: e.target.value}))} placeholder="Add any admin notes..." className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" rows={2} />
                         </div>
                       </div>
                     </div>
@@ -2524,6 +2505,12 @@ function App() {
                         }
                         if (!editFormData.slot) {
                           alert('❌ Time slot is required');
+                          return;
+                        }
+                        // A payment can't be 'verified' without a real amount — keep
+                        // this consistent with the payment-review state machine.
+                        if (editFormData.paymentStatus === 'verified' && (!Number(editFormData.amount) || Number(editFormData.amount) <= 0)) {
+                          alert('❌ Cannot mark payment "verified" with amount ₹0. Set a valid amount first.');
                           return;
                         }
 
@@ -3886,7 +3873,11 @@ function App() {
                   if (!formData.dateOfBirth) {
                     errors.dateOfBirth = 'Date of birth is required';
                   } else {
-                    const age = new Date().getFullYear() - new Date(formData.dateOfBirth).getFullYear();
+                    const dob = new Date(formData.dateOfBirth);
+                    const today = new Date();
+                    let age = today.getFullYear() - dob.getFullYear();
+                    const m = today.getMonth() - dob.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
                     if (age < 13) {
                       errors.dateOfBirth = 'Must be at least 13 years old';
                     }
