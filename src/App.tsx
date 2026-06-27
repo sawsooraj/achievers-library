@@ -25,36 +25,6 @@ const PLANS = {
   Yearly: { 'Half-day': 6000, 'Full-day': 10000 },
 };
 
-// VALIDATION FUNCTIONS (FIX #2: Form Validation)
-const validateEmail = (email: string) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email) ? '' : 'Invalid email format';
-};
-
-const validatePhone = (phone: string) => {
-  const cleanPhone = phone.replace(/[^0-9]/g, '');
-  return cleanPhone.length === 10 ? '' : `Phone must be 10 digits (got ${cleanPhone.length})`;
-};
-
-const validateAge = (dateOfBirth: string) => {
-  if (!dateOfBirth) return '';
-  const today = new Date();
-  const birthDate = new Date(dateOfBirth);
-  const age = Math.floor((today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-  if (age < 10) return 'Must be at least 10 years old';
-  if (age > 80) return 'Age seems invalid (> 80 years)';
-  return '';
-};
-
-const validatePincode = (pincode: string) => {
-  const pincodeRegex = /^[0-9]{6}$/;
-  return pincodeRegex.test(pincode.trim()) ? '' : 'Pincode must be 6 digits';
-};
-
-const sanitizeHtml = (input: string) => {
-  return DOMPurify.sanitize(input, { ALLOWED_TAGS: [] });
-};
-
 // LOGGING (FIX #1: Console.log in production)
 const log = (message: string, data?: any) => {
   if (import.meta.env.DEV) {
@@ -72,7 +42,20 @@ const logError = (message: string, error?: any) => {
 
 // FIX #118: Centralized helper to filter out deleted members
 const getActiveMembers = (members: any[]) => members.filter(m => !m.deletedAt && !m.deleted);
-const getDeletedMembers = (members: any[]) => members.filter(m => m.deleted);
+
+// Membership duration in months, keyed by the first word of the stored plan
+// string (e.g. "Monthly Half-day" -> "Monthly"). Used to derive the expiry date
+// from startDate, since no explicit expiry is persisted.
+const PLAN_MONTHS: Record<string, number> = { Monthly: 1, Quarterly: 3, 'Half-yearly': 6, Yearly: 12 };
+const getMembershipExpiry = (member: any): Date | null => {
+  if (!member?.startDate) return null;
+  const months = PLAN_MONTHS[(member.plan || '').split(' ')[0]];
+  if (!months) return null;
+  const d = new Date(member.startDate);
+  if (isNaN(d.getTime())) return null;
+  d.setMonth(d.getMonth() + months);
+  return d;
+};
 
 // Helper to parse query params
 const getQueryParams = (searchString: string) => {
@@ -2740,19 +2723,24 @@ function App() {
                 </div>
 
                 <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-800 font-semibold">✅ {members.length} members will receive the reminder</p>
+                  <p className="text-green-800 font-semibold">✅ {getActiveMembers(members).filter(m => m.paymentStatus === 'verified' && m.phone).length} members will receive the reminder</p>
                 </div>
 
                 <button
                   onClick={() => {
-                    members
-                      .filter(m => !m.deleted && m.paymentStatus === 'verified')
-                      .forEach(member => {
-                        if (member.phone) {
-                          const message = whatsappMessages.renewal(member.membershipId?.toString() || 'soon');
-                          sendWhatsAppMessage(member.phone, message);
-                        }
-                      });
+                    const recipients = getActiveMembers(members).filter(m => m.paymentStatus === 'verified' && m.phone);
+                    if (recipients.length === 0) {
+                      alert('No verified members with a phone number to remind.');
+                      return;
+                    }
+                    if (!confirm(`This will open ${recipients.length} WhatsApp tab(s), one per member. Continue?`)) {
+                      return;
+                    }
+                    recipients.forEach(member => {
+                      const expiry = getMembershipExpiry(member);
+                      const dateStr = expiry ? expiry.toLocaleDateString('en-IN') : 'soon';
+                      sendWhatsAppMessage(member.phone, whatsappMessages.renewal(dateStr));
+                    });
                   }}
                   className="w-full py-4 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold rounded-lg hover:shadow-lg text-lg"
                 >
