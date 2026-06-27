@@ -122,7 +122,7 @@ function App() {
   const [utrNumber, setUtrNumber] = useState('');
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [pdfBookingId, setPdfBookingId] = useState<string | null>(null);
-  // FIX #100: Removed unused selectedMembers state (dead code)
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(() => {
@@ -1581,7 +1581,7 @@ function App() {
                         </div>
                         <div>
                           <p className="text-xs text-gray-600">UTR / Reference ID</p>
-                          <p className="font-semibold text-base">{selectedMemberDetail.utrNumber || '—'}</p>
+                          <p className="font-semibold text-base">{selectedMemberDetail.paymentUTR || '—'}</p>
                         </div>
                       </div>
 
@@ -1692,7 +1692,7 @@ function App() {
                             ['Amount Paid', `₹${selectedMemberDetail.amount || 0}`],
                             ['Payment Method', selectedMemberDetail.paymentMethod === 'upi' ? 'UPI' : 'Cash'],
                             ['Payment Status', selectedMemberDetail.paymentStatus || 'Pending'],
-                            ['UTR/Reference', selectedMemberDetail.utrNumber || 'N/A'],
+                            ['UTR/Reference', selectedMemberDetail.paymentUTR || 'N/A'],
                             ['Referral Source', selectedMemberDetail.referralSource || 'N/A'],
                           ];
 
