@@ -594,7 +594,12 @@ function App() {
   // Admin Functions
   const handleAdminLogin = (password: string) => {
     const pwd = password.trim();
-    if (ADMIN_PASSWORDS.includes(pwd)) {
+    // FIX: Check both hardcoded and custom (localStorage) admin password
+    const customAdminPassword = localStorage.getItem('customAdminPassword');
+    const validPasswords = [...ADMIN_PASSWORDS];
+    if (customAdminPassword) validPasswords.push(customAdminPassword);
+
+    if (validPasswords.includes(pwd)) {
       setIsAdmin(true);
       setAdminPassword('');
       setAdminError('');
@@ -2697,6 +2702,36 @@ function App() {
 
           <div className="max-w-4xl mx-auto p-8">
             <div className="space-y-6">
+              {/* Admin Login Password Change */}
+              <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-lg shadow p-6 border-2 border-red-200">
+                <h3 className="text-lg font-bold text-red-700 mb-4">🔐 Change Admin Login Password</h3>
+                <p className="text-sm text-gray-600 mb-4">Change the master password used to login to admin panel</p>
+                <div className="flex gap-3">
+                  <input
+                    type="password"
+                    placeholder="New admin password (min 6 chars)"
+                    defaultValue=""
+                    id="newAdminPassword"
+                    className="flex-1 px-4 py-2 border-2 border-red-300 rounded-lg focus:border-red-500 outline-none"
+                  />
+                  <button
+                    onClick={() => {
+                      const newPassword = (document.getElementById('newAdminPassword') as HTMLInputElement)?.value;
+                      if (!newPassword || newPassword.length < 6) {
+                        alert('Password must be at least 6 characters');
+                        return;
+                      }
+                      localStorage.setItem('customAdminPassword', newPassword);
+                      (document.getElementById('newAdminPassword') as HTMLInputElement).value = '';
+                      alert(`✅ Admin password changed successfully!`);
+                    }}
+                    className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+
               {/* Users List */}
               <div className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="overflow-x-auto">
