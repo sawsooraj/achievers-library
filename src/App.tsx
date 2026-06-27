@@ -202,6 +202,7 @@ function App() {
   const [members, setMembers] = useState<any[]>([]);
   const [selectedPaymentForReview, setSelectedPaymentForReview] = useState<any>(null);
   const [paymentReviewNotes, setPaymentReviewNotes] = useState('');
+  const [reminderType, setReminderType] = useState<'payment' | 'welcome' | 'renewal'>('renewal');
   const [editingMember, setEditingMember] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>(null);
   const [scannedBookingId, setScannedBookingId] = useState('');
@@ -2728,6 +2729,36 @@ function App() {
 
     // Reminders Page
     if ((adminPage as string) === 'reminders') {
+      // Recipients + message depend on the selected reminder type.
+      // - payment: members still pending payment
+      // - welcome: verified members who have a membership ID issued
+      // - renewal: verified members (message includes their computed expiry)
+      const active = getActiveMembers(members);
+      const reminderRecipients = (
+        reminderType === 'payment'
+          ? active.filter(m => m.paymentStatus === 'pending' && m.phone)
+          : reminderType === 'welcome'
+          ? active.filter(m => m.paymentStatus === 'verified' && m.membershipId && m.phone)
+          : active.filter(m => m.paymentStatus === 'verified' && m.phone)
+      );
+      const buildReminderMessage = (m: any) => {
+        if (reminderType === 'payment') return whatsappMessages.paymentRequest();
+        if (reminderType === 'welcome') return whatsappMessages.welcome(m.membershipId);
+        const expiry = getMembershipExpiry(m);
+        return whatsappMessages.renewal(expiry ? expiry.toLocaleDateString('en-IN') : 'soon');
+      };
+      // Full static class strings (Tailwind cannot see interpolated class names).
+      const reminderTypes = [
+        { key: 'payment' as const, label: '📌 Payment Pending',
+          active: 'border-blue-600 bg-blue-100 ring-2 ring-blue-400',
+          idle: 'border-blue-300 bg-white hover:bg-blue-50' },
+        { key: 'welcome' as const, label: '✅ Welcome Message',
+          active: 'border-green-600 bg-green-100 ring-2 ring-green-400',
+          idle: 'border-green-300 bg-white hover:bg-green-50' },
+        { key: 'renewal' as const, label: '⏰ Renewal Reminder',
+          active: 'border-orange-600 bg-orange-100 ring-2 ring-orange-400',
+          idle: 'border-orange-300 bg-white hover:bg-orange-50' },
+      ];
       return (
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
@@ -2745,36 +2776,35 @@ function App() {
                 <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg">
                   <h3 className="font-bold text-lg mb-4">Select reminder type:</h3>
                   <div className="space-y-3">
-                    <button className="w-full text-left p-4 bg-white border-2 border-blue-300 rounded-lg hover:bg-blue-50 font-semibold">
-                      📌 Payment Pending
-                    </button>
-                    <button className="w-full text-left p-4 bg-white border-2 border-green-300 rounded-lg hover:bg-green-50 font-semibold">
-                      ✅ Welcome Message
-                    </button>
-                    <button className="w-full text-left p-4 bg-white border-2 border-orange-300 rounded-lg hover:bg-orange-50 font-semibold">
-                      ⏰ Renewal Reminder
-                    </button>
+                    {reminderTypes.map(rt => (
+                      <button
+                        key={rt.key}
+                        onClick={() => setReminderType(rt.key)}
+                        className={`w-full text-left p-4 rounded-lg font-semibold border-2 transition ${
+                          reminderType === rt.key ? rt.active : rt.idle
+                        }`}
+                      >
+                        {reminderType === rt.key ? '🔘 ' : '⚪ '}{rt.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
                 <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-green-800 font-semibold">✅ {getActiveMembers(members).filter(m => m.paymentStatus === 'verified' && m.phone).length} members will receive the reminder</p>
+                  <p className="text-green-800 font-semibold">✅ {reminderRecipients.length} member(s) will receive the "{reminderType}" reminder</p>
                 </div>
 
                 <button
                   onClick={() => {
-                    const recipients = getActiveMembers(members).filter(m => m.paymentStatus === 'verified' && m.phone);
-                    if (recipients.length === 0) {
-                      alert('No verified members with a phone number to remind.');
+                    if (reminderRecipients.length === 0) {
+                      alert('No matching members with a phone number for this reminder type.');
                       return;
                     }
-                    if (!confirm(`This will open ${recipients.length} WhatsApp tab(s), one per member. Continue?`)) {
+                    if (!confirm(`This will open ${reminderRecipients.length} WhatsApp tab(s), one per member. Continue?`)) {
                       return;
                     }
-                    recipients.forEach(member => {
-                      const expiry = getMembershipExpiry(member);
-                      const dateStr = expiry ? expiry.toLocaleDateString('en-IN') : 'soon';
-                      sendWhatsAppMessage(member.phone, whatsappMessages.renewal(dateStr));
+                    reminderRecipients.forEach(member => {
+                      sendWhatsAppMessage(member.phone, buildReminderMessage(member));
                     });
                   }}
                   className="w-full py-4 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold rounded-lg hover:shadow-lg text-lg"
