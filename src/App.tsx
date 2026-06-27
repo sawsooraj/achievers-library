@@ -7,8 +7,9 @@ import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import DOMPurify from 'dompurify';
 import './index.css';
 
@@ -279,6 +280,7 @@ function App() {
   });
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
   const [adminError, setAdminError] = useState('');
   const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats' | 'users'>('dashboard');
   const [previousAdminPage, setPreviousAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats' | 'users'>('dashboard');
@@ -769,47 +771,66 @@ function App() {
   };
 
   // Admin Functions
-  const handleAdminLogin = (password: string) => {
+  const grantAdmin = () => {
+    loginAttemptsRef.current = { count: 0, timestamp: Date.now() };
+    setLoginLocked(false);
+    setIsAdmin(true);
+    setAdminPassword('');
+    setAdminError('');
+    setAdminPage('dashboard');
+    setShowAdminLogin(false);
+    setTimeout(() => navigate('/admin/dashboard', { replace: true }), 0);
+  };
+
+  const rejectLogin = (msg: string) => {
     const now = Date.now();
     const { count, timestamp } = loginAttemptsRef.current;
+    loginAttemptsRef.current = { count: count + 1, timestamp: timestamp === 0 ? now : timestamp };
+    setAdminError(msg);
+    if (loginAttemptsRef.current.count >= 5) setLoginLocked(true);
+    setTimeout(() => setAdminError(''), 3000);
+  };
 
+  // Secure path = Firebase Auth (email + password): this gives a real token so
+  // Firestore Rules can allow admin reads/writes and block everyone else.
+  // If an email is given we ONLY trust Firebase Auth. With no email we fall back
+  // to the legacy password so nobody gets locked out before Auth is set up —
+  // but that path grants UI access only (no token), so under the secure rules it
+  // can't touch the database.
+  const handleAdminLogin = async (password: string) => {
+    const now = Date.now();
+    const { count, timestamp } = loginAttemptsRef.current;
     if (count >= 5 && now - timestamp < 300000) {
       setAdminError('Too many attempts. Try again later.');
       return;
     }
-    if (now - timestamp > 300000) {
-      loginAttemptsRef.current = { count: 0, timestamp: now };
-    }
+    if (now - timestamp > 300000) loginAttemptsRef.current = { count: 0, timestamp: now };
 
     const pwd = password.trim();
-    const customAdminPassword = localStorage.getItem('customAdminPassword');
-    // Master password: a custom one REPLACES the default (it does not add to it),
-    // so changing the admin password actually disables the old one.
-    const masterPasswords = customAdminPassword ? [customAdminPassword] : [...ADMIN_PASSWORDS];
-    // Per-user passwords: any user the admin has assigned a real password (>=6)
-    // can sign in with it. Empty/short passwords never grant access.
-    const userPasswords = users.map((u: any) => u.password).filter((p: string) => p && p.length >= 6);
-    const validPasswords = [...masterPasswords, ...userPasswords];
+    const email = adminEmail.trim();
 
-    if (validPasswords.includes(pwd)) {
-      loginAttemptsRef.current = { count: 0, timestamp: now };
-      setLoginLocked(false);
-      setIsAdmin(true);
-      setAdminPassword('');
-      setAdminError('');
-      setAdminPage('dashboard');
-      setShowAdminLogin(false);
-      setTimeout(() => {
-        navigate('/admin/dashboard', { replace: true });
-      }, 0);
-    } else {
-      loginAttemptsRef.current = { count: count + 1, timestamp: timestamp === 0 ? now : timestamp };
-      setAdminError('Invalid password!');
-      if (loginAttemptsRef.current.count >= 5) {
-        setLoginLocked(true);
+    if (email) {
+      try {
+        await signInWithEmailAndPassword(auth, email, pwd);
+        setAdminEmail('');
+        grantAdmin();
+      } catch (err: any) {
+        const code = err?.code || '';
+        if (code === 'auth/operation-not-allowed' || code === 'auth/configuration-not-found') {
+          rejectLogin('Firebase Auth is not enabled yet. Use the password (leave email empty) for now.');
+        } else {
+          rejectLogin('Invalid email or password.');
+        }
       }
-      setTimeout(() => setAdminError(''), 3000);
+      return;
     }
+
+    // Legacy password-only path (transition): UI access without a Firebase token.
+    const customAdminPassword = localStorage.getItem('customAdminPassword');
+    const masterPasswords = customAdminPassword ? [customAdminPassword] : [...ADMIN_PASSWORDS];
+    const userPasswords = users.map((u: any) => u.password).filter((p: string) => p && p.length >= 6);
+    if ([...masterPasswords, ...userPasswords].includes(pwd)) grantAdmin();
+    else rejectLogin('Invalid password!');
   };
 
   // Returns true only when the member was actually saved. The caller relies on
@@ -1100,6 +1121,15 @@ function App() {
           </div>
 
           <input
+            type="email"
+            value={adminEmail}
+            onChange={(e) => setAdminEmail(e.target.value)}
+            onKeyPress={(e) => { if (e.key === 'Enter') handleAdminLogin(adminPassword); }}
+            placeholder="Admin email (recommended)"
+            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-3 focus:border-blue-600 outline-none focus:ring-2 focus:ring-blue-200"
+            autoComplete="username"
+          />
+          <input
             type="password"
             value={adminPassword}
             onChange={(e) => setAdminPassword(e.target.value)}
@@ -1108,7 +1138,8 @@ function App() {
                 handleAdminLogin(adminPassword);
               }
             }}
-            placeholder="Enter password"
+            placeholder="Password"
+            autoComplete="current-password"
             className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-4 focus:border-blue-600 outline-none focus:ring-2 focus:ring-blue-200"
             autoFocus
           />
@@ -1159,7 +1190,7 @@ function App() {
                 </div>
               </div>
               <button
-                onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); navigate('/'); }}
+                onClick={() => { signOut(auth).catch(() => {}); setIsAdmin(false); setAdminPage('dashboard'); navigate('/'); }}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
               >
                 Logout
@@ -1604,7 +1635,7 @@ function App() {
                 <div className="text-2xl font-bold text-blue-600">👥 Members List</div>
               </div>
               <button
-                onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); navigate('/'); }}
+                onClick={() => { signOut(auth).catch(() => {}); setIsAdmin(false); setAdminPage('dashboard'); navigate('/'); }}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold text-sm"
               >
                 Logout
@@ -2562,7 +2593,7 @@ function App() {
                 <div className="text-2xl font-bold text-blue-600">💳 Payment Verification</div>
               </div>
               <button
-                onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); navigate('/'); }}
+                onClick={() => { signOut(auth).catch(() => {}); setIsAdmin(false); setAdminPage('dashboard'); navigate('/'); }}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold text-sm"
               >
                 Logout

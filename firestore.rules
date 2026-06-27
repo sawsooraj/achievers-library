@@ -1,0 +1,68 @@
+rules_version = '2';
+
+// =============================================================================
+// Achievers Library — Firestore Security Rules
+//
+// HOW TO APPLY:
+//   Firebase Console -> Firestore Database -> Rules tab -> paste this -> Publish
+//
+// IMPORTANT — do this FIRST or admin will be locked out of data:
+//   1. Firebase Console -> Authentication -> Sign-in method -> enable
+//      "Email/Password".
+//   2. Authentication -> Users -> Add user -> create your admin
+//      (email + password). Use that email+password on the admin login screen.
+//   3. THEN publish these rules.
+//
+// What these rules do:
+//   - Anyone can REGISTER (create) a member, but only with a sane, validated
+//     payload (no giant docs, required fields present). This keeps the public
+//     admission form working.
+//   - Only a signed-in admin (Firebase Auth) can UPDATE or DELETE members.
+//     A random attacker with your public API key can no longer tamper with or
+//     wipe your data.
+//   - READ: see the two options below and pick one.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /members/{memberId} {
+
+      // ---- READ -------------------------------------------------------------
+      // OPTION A (default, recommended for now): reads are allowed.
+      // The public admission form needs this to show live slot availability.
+      // Trade-off: member details remain publicly readable.
+      allow read: if true;
+
+      // OPTION B (max privacy): comment out Option A above and use this instead.
+      // Member details become readable ONLY by a signed-in admin. NOTE: this
+      // turns OFF the live "X/23 seats available" counter on the public form
+      // (registration still works). Ask to migrate slot counts to a public
+      // aggregate if you want both privacy AND the live counter.
+      // allow read: if request.auth != null;
+
+      // ---- CREATE (public registration, validated) --------------------------
+      allow create: if isValidNewMember(request.resource.data);
+
+      // ---- UPDATE / DELETE (admin only) -------------------------------------
+      allow update, delete: if request.auth != null;
+    }
+
+    // Everything else is denied by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// A registration payload we are willing to accept from the public.
+function isValidNewMember(d) {
+  return d.size() <= 40
+      && d.fullName is string && d.fullName.size() > 0 && d.fullName.size() <= 120
+      && d.email is string && d.email.size() <= 200
+      && d.phone is string && d.phone.size() <= 15
+      && (!('amount' in d) || d.amount is number)
+      // base64 UPI screenshots must stay small (Firestore caps docs at ~1 MiB)
+      && (!('upiScreenshot' in d) || d.upiScreenshot == null || d.upiScreenshot.size() < 900000)
+      && (!('deleted' in d) || d.deleted == false);
+}
