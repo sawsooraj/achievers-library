@@ -74,6 +74,12 @@ const logError = (message: string, error?: any) => {
 const getActiveMembers = (members: any[]) => members.filter(m => !m.deleted);
 const getDeletedMembers = (members: any[]) => members.filter(m => m.deleted);
 
+// Helper to parse query params
+const getQueryParams = (searchString: string) => {
+  const params = new URLSearchParams(searchString);
+  return Object.fromEntries(params);
+};
+
 // FIX #213: Retry mechanism for failed async operations
 const retryOperation = async (operation: () => Promise<any>, maxRetries = 3, delayMs = 500) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -206,6 +212,7 @@ function App() {
   // Parse URL and sync to step/admin state (URL is source of truth)
   useEffect(() => {
     const pathname = location.pathname || '/';
+    const queryParams = getQueryParams(location.search);
 
     if (pathname.startsWith('/admin/')) {
       const page = pathname.replace('/admin/', '') as any;
@@ -221,6 +228,24 @@ function App() {
           setAdminPage(page || 'dashboard');
         }
       }
+
+      // Handle modal/detail views via query params
+      // e.g., /admin/members?detail=memberId or /admin/payments?review=paymentId
+      if (queryParams.detail && members.length > 0) {
+        const member = members.find(m => m.docId === queryParams.detail);
+        if (member) setSelectedMemberDetail(member);
+      }
+      if (queryParams.review && members.length > 0) {
+        const payment = members.find(m => m.id === queryParams.review);
+        if (payment) setSelectedPaymentForReview(payment);
+      }
+      if (queryParams.edit) {
+        const member = members.find(m => m.docId === queryParams.edit);
+        if (member) {
+          setEditingMember(member);
+          setEditFormData({...member});
+        }
+      }
     } else if (pathname.startsWith('/admission/step-')) {
       const stepNum = parseInt(pathname.replace('/admission/step-', ''));
       if (!isNaN(stepNum) && stepNum >= 1 && stepNum <= 7) {
@@ -231,7 +256,7 @@ function App() {
     } else {
       setStep(0);
     }
-  }, [location.pathname, isAdmin, navigate]);
+  }, [location.pathname, location.search, isAdmin, navigate, members]);
 
   // Load members from Firestore with real-time updates (FIX #19: Add [] dependency array)
   useEffect(() => {
@@ -1406,7 +1431,7 @@ function App() {
                         </td>
                         <td className="py-4 px-6">
                           <button
-                            onClick={() => setSelectedMemberDetail(member)}
+                            onClick={() => navigate(`/admin/members?detail=${member.docId}`)}
                             className="font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                           >
                             {member.fullName}
