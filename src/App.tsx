@@ -606,7 +606,9 @@ function App() {
       setAdminPage('dashboard');
       setShowAdminLogin(false);
       // FIX: Navigate to proper admin URL
-      navigate('/admin/dashboard', { replace: true });
+      setTimeout(() => {
+        navigate('/admin/dashboard', { replace: true });
+      }, 0);
     } else {
       setAdminError('Invalid password!');
       setTimeout(() => setAdminError(''), 3000);
@@ -792,8 +794,10 @@ function App() {
     };
   }, [members, searchQuery]);
 
-  // ADMIN LOGIN PAGE (show when login button is clicked)
-  if (showAdminLogin && !isAdmin) {
+  // ADMIN LOGIN PAGE (show when login button is clicked or at /admin/login URL)
+  // Priority: URL-driven login (if pathname is /admin/login, show login regardless of showAdminLogin state)
+  const isLoginPath = location.pathname === '/admin/login';
+  if ((showAdminLogin || isLoginPath) && !isAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4">
         <motion.div
