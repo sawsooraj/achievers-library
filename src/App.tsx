@@ -675,6 +675,24 @@ function App() {
     };
   }, [members]);
 
+  // FIX #105: Memoize frequently used member filters to avoid recalculation on every render
+  const memberFilters = useMemo(() => {
+    const active = getActiveMembers(members);
+    const q = searchQuery.trim().toLowerCase();
+    return {
+      active,
+      noMembershipId: active.filter(m => !m.membershipId),
+      pendingPayments: active.filter(m => m.paymentStatus === 'pending'),
+      verified: active.filter(m => m.paymentStatus === 'verified'),
+      searchFiltered: q.length === 0 ? active : active.filter(m =>
+        (m.fullName?.toLowerCase().includes(q) || false) ||
+        (m.email?.toLowerCase().includes(q) || false) ||
+        (m.phone?.includes(q) || false) ||
+        (m.id?.toLowerCase().includes(q) || false)
+      ),
+    };
+  }, [members, searchQuery]);
+
   // ADMIN LOGIN PAGE (show when login button is clicked)
   if (showAdminLogin && !isAdmin) {
     return (
@@ -846,8 +864,9 @@ function App() {
               {/* Section 1: New Admissions Pending */}
               <div className="bg-white rounded-lg shadow p-6 mb-6">
                 {/* FIX #118: Filter out deleted members from pending admissions */}
+                {/* FIX #105: Use memoized filter */}
                 {(() => {
-                  const pendingAdmissions = getActiveMembers(members).filter(m => !m.membershipId);
+                  const pendingAdmissions = memberFilters.noMembershipId;
                   return (
                     <>
                       <h2 className="text-xl font-bold text-green-700 mb-4">🆕 New Admissions Pending ({pendingAdmissions.length})</h2>
@@ -928,8 +947,9 @@ function App() {
               {/* Section 2: Pending Payments */}
               <div className="bg-white rounded-lg shadow p-6 mb-6">
                 {/* FIX #118: Filter out deleted members from pending payments */}
+                {/* FIX #105: Use memoized filter */}
                 {(() => {
-                  const pendingPayments = getActiveMembers(members).filter(m => m.paymentStatus === 'pending');
+                  const pendingPayments = memberFilters.pendingPayments;
                   return (
                     <>
                       <h2 className="text-xl font-bold text-orange-700 mb-4">💰 Pending Payments to Verify ({pendingPayments.length})</h2>
@@ -1149,13 +1169,8 @@ function App() {
 
     // Members Page
     if ((adminPage as string) === 'members') {
-      const q = searchQuery.trim().toLowerCase();
-      const filtered = q.length === 0 ? members : members.filter(m =>
-        (m.fullName?.toLowerCase().includes(q) || false) ||
-        (m.email?.toLowerCase().includes(q) || false) ||
-        (m.phone?.includes(q) || false) ||
-        (m.id?.toLowerCase().includes(q) || false)
-      );
+      // FIX #105: Use memoized filtered members instead of recalculating
+      const filtered = memberFilters.searchFiltered;
 
       return (
         <div className="min-h-screen bg-gray-50">
