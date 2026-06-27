@@ -3480,6 +3480,7 @@ function App() {
                   console.log('✅ Member saved. Success modal should show now.');
                   // Step 3: Navigate to thank you page
                   console.log('🎉 Navigating to thank you page');
+                  resetForm();
                   navigate('/admission/step-7');
                 } catch (error: any) {
                   console.error('❌ Submission error:', error);
