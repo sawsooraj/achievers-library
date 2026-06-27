@@ -555,6 +555,8 @@ function App() {
       setAdminError('');
       setAdminPage('dashboard');
       setShowAdminLogin(false);
+      // FIX: Navigate to proper admin URL
+      navigate('/admin/dashboard', { replace: true });
     } else {
       setAdminError('Invalid password!');
       setTimeout(() => setAdminError(''), 3000);
