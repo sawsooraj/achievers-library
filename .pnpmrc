@@ -1,7 +1,0 @@
-# pnpm configuration
-ignore-scripts=false
-auto-install-peers=true
-strict-peer-dependencies=false
-
-# Allow build scripts for dependencies
-script-shell="/bin/bash"
