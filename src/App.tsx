@@ -546,7 +546,18 @@ function App() {
       doc.setTextColor(25, 118, 210);
       doc.text(`Total: ₹${amount}`, pageWidth - 18, y + 10, { align: 'right' });
 
-      y += boxHeight + 10;
+      y += boxHeight + 8;
+
+      // Payment method + UTR / reference (proof of payment on the receipt)
+      doc.setFont('', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Payment Method: ${paymentMethod === 'upi' ? 'UPI' : 'Cash'}`, 18, y);
+      if (paymentMethod === 'upi' && utrNumber) {
+        y += 5;
+        doc.text(`UTR / Reference: ${utrNumber}`, 18, y);
+      }
+      y += 10;
 
       // QR Code
       doc.setFont('', 'bold');
@@ -1217,7 +1228,7 @@ function App() {
                           </div>
                           <div>
                             <p className="text-xs text-gray-600">UTR/Ref ID</p>
-                            <p className="font-bold">{member.paymentUTR || 'Not provided'}</p>
+                            <p className="font-bold">{member.paymentUTR || member.utrNumber || 'Not provided'}</p>
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -1789,7 +1800,7 @@ function App() {
                         </div>
                         <div>
                           <p className="text-xs text-gray-600">UTR / Reference ID</p>
-                          <p className="font-semibold text-base">{selectedMemberDetail.paymentUTR || '—'}</p>
+                          <p className="font-semibold text-base">{selectedMemberDetail.paymentUTR || selectedMemberDetail.utrNumber || '—'}</p>
                         </div>
                       </div>
 
@@ -1900,7 +1911,7 @@ function App() {
                             ['Amount Paid', `₹${selectedMemberDetail.amount || 0}`],
                             ['Payment Method', selectedMemberDetail.paymentMethod === 'upi' ? 'UPI' : 'Cash'],
                             ['Payment Status', selectedMemberDetail.paymentStatus || 'Pending'],
-                            ['UTR/Reference', selectedMemberDetail.paymentUTR || 'N/A'],
+                            ['UTR/Reference', selectedMemberDetail.paymentUTR || selectedMemberDetail.utrNumber || 'N/A'],
                             ['Referral Source', selectedMemberDetail.referralSource || 'N/A'],
                           ];
 
@@ -2141,7 +2152,7 @@ function App() {
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">UTR/Reference ID</label>
-                          <input type="text" value={editFormData.utrNumber || ''} onChange={(e) => setEditFormData({...editFormData, utrNumber: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.paymentUTR ?? editFormData.utrNumber ?? ''} onChange={(e) => setEditFormData({...editFormData, paymentUTR: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
                     </div>
@@ -2334,7 +2345,7 @@ function App() {
                         </div>
                         <div>
                           <p className="text-gray-600">UTR/Ref ID</p>
-                          <p className="text-lg font-bold text-gray-700">{member.paymentUTR || 'Not provided'}</p>
+                          <p className="text-lg font-bold text-gray-700">{member.paymentUTR || member.utrNumber || 'Not provided'}</p>
                         </div>
                       </div>
 
@@ -2444,7 +2455,7 @@ function App() {
                   <input
                     type="text"
                     placeholder="e.g., UPI REF 123456789 or Bank Ref: ABC123"
-                    defaultValue={selectedPaymentForReview.paymentUTR || ''}
+                    defaultValue={selectedPaymentForReview.paymentUTR || selectedPaymentForReview.utrNumber || ''}
                     onChange={(e) => setSelectedPaymentForReview({...selectedPaymentForReview, paymentUTR: e.target.value})}
                     className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
                   />
@@ -4331,8 +4342,9 @@ function App() {
                     amount: amount,
                     paymentMethod: paymentMethod,
                     upiScreenshot: paymentMethod === 'upi' ? upiScreenshot : null,
-                    // FIX #114: Sanitize utrNumber
-                    utrNumber: paymentMethod === 'upi' ? sanitizeInput(utrNumber) : null,
+                    // Save under paymentUTR — the field every admin view reads.
+                    // (Previously saved as utrNumber, which the admin UI never showed.)
+                    paymentUTR: paymentMethod === 'upi' ? sanitizeInput(utrNumber) : null,
                   });
                   // Step 3: Only advance to the thank-you page if the member was
                   // actually saved. A duplicate/failed save must keep the user on
@@ -4438,7 +4450,16 @@ function App() {
             <div className="space-y-2">
               <button
                 onClick={async () => {
-                  generatePDF(bookingId, amount);
+                  // generatePDF builds and RETURNS the doc — it does not download.
+                  // Use the one made at submit if present, else regenerate, then save.
+                  try {
+                    const pdf = pdfDoc || await generatePDF(bookingId, amount);
+                    if (pdf) pdf.save(`Admission_${bookingId}.pdf`);
+                    else alert('❌ Could not generate the PDF. Please try again.');
+                  } catch (e) {
+                    logError('PDF download failed:', e);
+                    alert('❌ Could not generate the PDF. Please try again.');
+                  }
                 }}
                 className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
               >
