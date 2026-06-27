@@ -71,7 +71,7 @@ const logError = (message: string, error?: any) => {
 };
 
 // FIX #118: Centralized helper to filter out deleted members
-const getActiveMembers = (members: any[]) => members.filter(m => !m.deleted);
+const getActiveMembers = (members: any[]) => members.filter(m => !m.deletedAt && !m.deleted);
 const getDeletedMembers = (members: any[]) => members.filter(m => m.deleted);
 
 // Helper to parse query params
@@ -262,7 +262,15 @@ function App() {
     } else if (pathname.startsWith('/admission/step-')) {
       const stepNum = parseInt(pathname.replace('/admission/step-', ''));
       if (!isNaN(stepNum) && stepNum >= 1 && stepNum <= 7) {
-        setStep(stepNum);
+        const canAccessStep = stepNum === 1 || (
+          stepNum >= 2 && formData.fullName && formData.dateOfBirth && formData.gender && formData.email && formData.phone
+        );
+        if (canAccessStep) {
+          setStep(stepNum);
+        } else {
+          setStep(1);
+          navigate('/admission/step-1', { replace: true });
+        }
       } else {
         setStep(0);
       }
@@ -367,6 +375,12 @@ function App() {
     let sanitizedValue = value;
     if (name === 'fullName' || name === 'emergencyContactName') {
       sanitizedValue = value.replace(/[\p{Emoji}]/gu, '');
+    }
+    if (name === 'email') {
+      sanitizedValue = value.toLowerCase().trim();
+    }
+    if (name === 'phone') {
+      sanitizedValue = value.replace(/[^0-9]/g, '').slice(0, 10);
     }
     setFormData(prev => ({ ...prev, [name]: sanitizedValue }));
   };
@@ -753,18 +767,36 @@ function App() {
     }
   };
 
+  const isValidPaymentTransition = (from: string, to: string, amount?: number): boolean => {
+    const transitions: { [key: string]: string[] } = {
+      'pending': ['verified', 'rejected'],
+      'verified': [],
+      'rejected': ['pending'],
+    };
+    if (!transitions[from]?.includes(to)) return false;
+    if (to === 'verified' && (!amount || amount <= 0)) return false;
+    return true;
+  };
+
   const updateMemberPayment = async (id: string, status: string) => {
     try {
-      // Find the member with docId
       const member = members.find(m => m.id === id);
-      if (member?.docId) {
-        // Update in Firestore
-        const memberRef = doc(db, 'members', member.docId);
-        await updateDoc(memberRef, { paymentStatus: status });
-        alert(`✅ Payment status updated to "${status}"`);
-      } else {
+      if (!member?.docId) {
         alert('❌ Member not found');
+        return;
       }
+      const currentStatus = member.paymentStatus || 'pending';
+      if (!isValidPaymentTransition(currentStatus, status, member.amount)) {
+        if (status === 'verified' && (!member.amount || member.amount <= 0)) {
+          alert('❌ Cannot verify payment without valid amount');
+        } else {
+          alert(`❌ Cannot transition from ${currentStatus} to ${status}`);
+        }
+        return;
+      }
+      const memberRef = doc(db, 'members', member.docId);
+      await updateDoc(memberRef, { paymentStatus: status });
+      alert(`✅ Payment status updated to "${status}"`);
     } catch (error) {
       logError('Error updating payment:', error);
       alert('❌ Error updating payment status. Please try again.');
@@ -2479,7 +2511,7 @@ function App() {
           <div className="max-w-7xl mx-auto p-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {slots.map((slot) => {
-                const slotMembers = members.filter(m => m.slot === slot.name && !m.deleted);
+                const slotMembers = members.filter(m => m.slot === slot.name && !m.deletedAt);
                 const availableSeats = slot.capacity - slotMembers.length;
 
                 return (
