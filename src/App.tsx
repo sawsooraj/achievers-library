@@ -190,12 +190,19 @@ function App() {
   const [previousAdminPage, setPreviousAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats' | 'users'>('dashboard');
   // FIX: Load users from localStorage so password changes persist
   const [users, setUsers] = useState<any[]>(() => {
+    // No default passwords — weak hardcoded creds would be visible in the public
+    // client bundle. Users can only log in once an admin sets a password (>=6)
+    // for them via the Users page; until then only the master password works.
     const defaults = [
-      { id: 'admin1', name: 'Admin', role: 'admin', password: 'admin123', email: 'admin@library.com' },
-      { id: 'staff1', name: 'Staff Member', role: 'staff', password: 'staff123', email: 'staff@library.com' },
+      { id: 'admin1', name: 'Admin', role: 'admin', password: '', email: 'admin@library.com' },
+      { id: 'staff1', name: 'Staff Member', role: 'staff', password: '', email: 'staff@library.com' },
     ];
     const parsed = safeJSONParse<any[]>(localStorage.getItem('adminUsers'), defaults);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaults;
+    if (!Array.isArray(parsed) || parsed.length === 0) return defaults;
+    // Migration: scrub the old weak hardcoded defaults that may linger in
+    // localStorage from a previous build, so they can't be used to log in.
+    const weak = ['admin123', 'staff123'];
+    return parsed.map((u: any) => (weak.includes(u?.password) ? { ...u, password: '' } : u));
   });
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editUserPassword, setEditUserPassword] = useState('');
@@ -666,8 +673,13 @@ function App() {
 
     const pwd = password.trim();
     const customAdminPassword = localStorage.getItem('customAdminPassword');
-    const validPasswords = [...ADMIN_PASSWORDS];
-    if (customAdminPassword) validPasswords.push(customAdminPassword);
+    // Master password: a custom one REPLACES the default (it does not add to it),
+    // so changing the admin password actually disables the old one.
+    const masterPasswords = customAdminPassword ? [customAdminPassword] : [...ADMIN_PASSWORDS];
+    // Per-user passwords: any user the admin has assigned a real password (>=6)
+    // can sign in with it. Empty/short passwords never grant access.
+    const userPasswords = users.map((u: any) => u.password).filter((p: string) => p && p.length >= 6);
+    const validPasswords = [...masterPasswords, ...userPasswords];
 
     if (validPasswords.includes(pwd)) {
       loginAttemptsRef.current = { count: 0, timestamp: now };
@@ -2882,7 +2894,12 @@ function App() {
                     <tbody>
                       {users.map(user => (
                         <tr key={user.id} className="border-b hover:bg-gray-50">
-                          <td className="px-6 py-4 font-semibold">{user.name}</td>
+                          <td className="px-6 py-4 font-semibold">
+                            {user.name}
+                            <div className={`text-xs font-normal mt-0.5 ${user.password && user.password.length >= 6 ? 'text-green-600' : 'text-gray-400'}`}>
+                              {user.password && user.password.length >= 6 ? '🔑 Login enabled' : '🔒 No password set'}
+                            </div>
+                          </td>
                           <td className="px-6 py-4">
                             <span className={`px-3 py-1 rounded-full text-sm font-bold ${
                               user.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
