@@ -364,7 +364,11 @@ function App() {
   const handleInputChange = (e: any) => {
     const { name, value } = e.target;
     if (!name || typeof name !== 'string') return;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    let sanitizedValue = value;
+    if (name === 'fullName' || name === 'emergencyContactName') {
+      sanitizedValue = value.replace(/[\p{Emoji}]/gu, '');
+    }
+    setFormData(prev => ({ ...prev, [name]: sanitizedValue }));
   };
 
   const generatePDF = async (bookingId: string, amount: number) => {
@@ -3287,6 +3291,7 @@ function App() {
                   value={formData.fullName}
                   onChange={handleInputChange}
                   placeholder="Enter your full name"
+                  maxLength={50}
                   className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none ${formErrors.fullName ? 'border-red-600 focus:border-red-600 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
                 />
                 {formErrors.fullName && <p className="text-red-600 text-sm mt-1">⚠️ {formErrors.fullName}</p>}
@@ -3299,6 +3304,7 @@ function App() {
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="example@email.com"
+                  maxLength={100}
                   className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none ${formErrors.email ? 'border-red-600 focus:border-red-600 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
                 />
                 {formErrors.email && <p className="text-red-600 text-sm mt-1">⚠️ {formErrors.email}</p>}
@@ -3327,6 +3333,7 @@ function App() {
                   name="dateOfBirth"
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
+                  min="1950-01-01"
                   max={new Date().toISOString().split('T')[0]}
                   className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none ${formErrors.dateOfBirth ? 'border-red-600 focus:border-red-600 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
                 />
@@ -3378,6 +3385,7 @@ function App() {
                   value={formData.schoolCollege}
                   onChange={handleInputChange}
                   placeholder="Enter your school or college name"
+                  maxLength={100}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
                 />
               </div>
@@ -3655,6 +3663,7 @@ function App() {
                   value={formData.emergencyContactName}
                   onChange={handleInputChange}
                   placeholder="Parent/Guardian name"
+                  maxLength={50}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
                 />
               </div>
