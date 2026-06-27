@@ -633,23 +633,22 @@ function App() {
   };
 
   // Admin Navigation Functions
-  const goToAdminPage = (page: 'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats') => {
+  const goToAdminPage = (page: 'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats' | 'users') => {
     if (page !== adminPage) {
       setPreviousAdminPage(adminPage);
-      setAdminPage(page);
-      // FIX #113: Sync URL with page state
+      // Navigate only — the URL effect is the single source of truth and will
+      // set adminPage. Setting it here too risks URL/state desync.
       navigate(`/admin/${page}`, { replace: false });
     }
   };
 
-  // FIX #108: Add validation guard
+  // FIX #108: Add validation guard. Navigate (don't just setAdminPage) so the
+  // URL stays in sync; otherwise the URL effect re-runs on the next members
+  // update and snaps the page back to whatever the (now stale) URL says.
   const goBackAdmin = () => {
-    const validPages = ['dashboard', 'scanner', 'members', 'payments', 'reminders', 'seats', 'users'] as const;
-    if (previousAdminPage && validPages.includes(previousAdminPage as any)) {
-      setAdminPage(previousAdminPage);
-    } else {
-      setAdminPage('dashboard');
-    }
+    const validPages = ['dashboard', 'scanner', 'members', 'payments', 'reminders', 'seats', 'users'];
+    const target = (previousAdminPage && validPages.includes(previousAdminPage as any)) ? previousAdminPage : 'dashboard';
+    navigate(`/admin/${target}`);
   };
 
   // Admin Functions
@@ -1303,7 +1302,7 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
             <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-              <button onClick={() => { goBackAdmin(); setScannedBookingId(''); setScannerActive(false); }} className="text-2xl">←</button>
+              <button onClick={() => { setScannedBookingId(''); goBackAdmin(); }} className="text-2xl">←</button>
               <div className="text-2xl font-bold text-blue-600">📱 QR Scanner</div>
             </div>
           </header>
@@ -1323,7 +1322,7 @@ function App() {
                   </div>
 
                   <button
-                    onClick={() => { setAdminPage('dashboard'); setScannerActive(false); }}
+                    onClick={() => { setScannedBookingId(''); navigate('/admin/dashboard'); }}
                     className="w-full py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
                   >
                     Back to Dashboard
@@ -1379,13 +1378,13 @@ function App() {
 
                   <div className="flex gap-3">
                     <button
-                      onClick={() => { setScannedBookingId(''); setScannerActive(true); }}
+                      onClick={() => { setScannedBookingId(''); }}
                       className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
                     >
                       📸 Scan Next
                     </button>
                     <button
-                      onClick={() => { setAdminPage('dashboard'); setScannedBookingId(''); setScannerActive(false); }}
+                      onClick={() => { setScannedBookingId(''); navigate('/admin/dashboard'); }}
                       className="flex-1 py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
                     >
                       Back to Dashboard
@@ -2363,7 +2362,7 @@ function App() {
             </div>
 
             <button
-              onClick={() => setAdminPage('dashboard')}
+              onClick={() => navigate('/admin/dashboard')}
               className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg"
             >
               Back to Dashboard
@@ -2814,7 +2813,7 @@ function App() {
               </div>
 
               <button
-                onClick={() => setAdminPage('dashboard')}
+                onClick={() => navigate('/admin/dashboard')}
                 className="w-full mt-6 py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg"
               >
                 Back to Dashboard
@@ -2981,7 +2980,7 @@ function App() {
               )}
 
               <button
-                onClick={() => setAdminPage('dashboard')}
+                onClick={() => navigate('/admin/dashboard')}
                 className="w-full py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-lg hover:bg-blue-50"
               >
                 Back to Dashboard
