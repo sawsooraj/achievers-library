@@ -473,6 +473,7 @@ function App() {
 
   // Form reset function
   const resetForm = () => {
+    // FIX #126: Reset all form state, not just core fields
     setFormData(initialFormData);
     setFormErrors({});
     setSelectedPlan('');
@@ -480,6 +481,12 @@ function App() {
     setSelectedSlot('');
     setPaymentMethod('upi');
     setSelectedDate(new Date().toISOString().split('T')[0]);
+    setUpiScreenshot(null);
+    setUtrNumber('');
+    setAgreeTerms(false);
+    setIsSamePermanentAddress(false);
+    setPdfDoc(null);
+    setPdfBookingId(null);
   };
 
   // Admin Navigation Functions
