@@ -23,8 +23,8 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
-    - name: Install dependencies
-      run: npm install
+    - name: Install dependencies with npm
+      run: npm ci --prefer-offline --no-audit
 
     - name: Run linter
       run: npm run lint --if-present || true
