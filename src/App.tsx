@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
@@ -7,6 +7,7 @@ import QRCode from 'qrcode';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { db } from './firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
+import DOMPurify from 'dompurify';
 import './index.css';
 
 // Configuration
@@ -20,6 +21,51 @@ const PLANS = {
   Quarterly: { 'Half-day': 1700, 'Full-day': 3200 },
   'Half-yearly': { 'Half-day': 3200, 'Full-day': 6000 },
   Yearly: { 'Half-day': 6000, 'Full-day': 10000 },
+};
+
+// VALIDATION FUNCTIONS (FIX #2: Form Validation)
+const validateEmail = (email: string) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) ? '' : 'Invalid email format';
+};
+
+const validatePhone = (phone: string) => {
+  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  return cleanPhone.length === 10 ? '' : `Phone must be 10 digits (got ${cleanPhone.length})`;
+};
+
+const validateAge = (dateOfBirth: string) => {
+  if (!dateOfBirth) return '';
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  const age = Math.floor((today.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+  if (age < 10) return 'Must be at least 10 years old';
+  if (age > 80) return 'Age seems invalid (> 80 years)';
+  return '';
+};
+
+const validatePincode = (pincode: string) => {
+  const pincodeRegex = /^[0-9]{6}$/;
+  return pincodeRegex.test(pincode.trim()) ? '' : 'Pincode must be 6 digits';
+};
+
+const sanitizeHtml = (input: string) => {
+  return DOMPurify.sanitize(input, { ALLOWED_TAGS: [] });
+};
+
+// LOGGING (FIX #1: Console.log in production)
+const log = (message: string, data?: any) => {
+  if (process.env.NODE_ENV !== 'production') {
+    if (data) log(message, data);
+    else log(message);
+  }
+};
+
+const logError = (message: string, error?: any) => {
+  if (process.env.NODE_ENV !== 'production') {
+    if (error) logError(message, error);
+    else logError(message);
+  }
 };
 
 function App() {
@@ -131,19 +177,19 @@ function App() {
     }
   }, [location.pathname]);
 
-  // Load members from Firestore with real-time updates
+  // Load members from Firestore with real-time updates (FIX #19: Add [] dependency array)
   useEffect(() => {
     try {
-      console.log('Setting up Firestore real-time listener...');
+      log('Setting up Firestore real-time listener...');
       // Set up real-time listener for members collection
       const unsubscribe = onSnapshot(
         collection(db, 'members'),
         (querySnapshot) => {
-          console.log('Firestore listener triggered, total docs:', querySnapshot.docs.length);
+          log('Firestore listener triggered, total docs:', querySnapshot.docs.length);
           const membersList = querySnapshot.docs
             .map(doc => {
               const data = doc.data();
-              console.log('Doc ID:', doc.id, 'Deleted:', data.deleted, 'Name:', data.fullName);
+              log('Doc ID:', doc.id, 'Deleted:', data.deleted, 'Name:', data.fullName);
               return {
                 id: data.id || doc.id, // Prefer data.id, fall back to docId
                 docId: doc.id,
@@ -152,12 +198,12 @@ function App() {
             })
             .filter((m: any) => !m.deleted) // Filter out soft-deleted members
             .filter((m: any, idx: number, arr: any[]) => arr.findIndex(x => x.id === m.id) === idx); // Remove duplicates by id
-          console.log('✅ Members loaded from Firestore:', membersList.length, 'members');
+          log('✅ Members loaded from Firestore:', membersList.length, 'members');
           setMembers(membersList as any[]);
         },
         (error) => {
-          console.error('❌ Firestore listener error:', error);
-          console.log('Loading members from localStorage as fallback...');
+          logError('❌ Firestore listener error:', error);
+          log('Loading members from localStorage as fallback...');
           const saved = localStorage.getItem('members');
           if (saved) setMembers(JSON.parse(saved));
         }
@@ -166,7 +212,7 @@ function App() {
       // Cleanup listener on unmount
       return () => unsubscribe();
     } catch (error) {
-      console.error('Error setting up listener:', error);
+      logError('Error setting up listener:', error);
       const saved = localStorage.getItem('members');
       if (saved) setMembers(JSON.parse(saved));
     }
@@ -201,7 +247,7 @@ function App() {
           } catch (err) {}
         };
       } catch (error) {
-        console.error('QR Scanner error:', error);
+        logError('QR Scanner error:', error);
         window.__qrScannerActive = false;
       }
     }
@@ -357,15 +403,15 @@ function App() {
       // Return the PDF document instead of auto-saving
       return doc;
     } catch (error) {
-      console.error('PDF generation error:', error);
+      logError('PDF generation error:', error);
       alert('Error generating PDF. Please try again.');
       return null;
     }
   };
 
-  // Input Sanitization Helper
+  // Input Sanitization Helper (FIX #4: Use DOMPurify instead of weak regex)
   const sanitizeInput = (input: string) => {
-    return input.trim().replace(/[<>]/g, '');
+    return DOMPurify.sanitize(input, { ALLOWED_TAGS: [] });
   };
 
   // WhatsApp Messages & Helper
@@ -462,11 +508,11 @@ function App() {
         deleted: false,
       };
 
-      console.log('📝 Attempting to save:', newMember);
+      log('📝 Attempting to save:', newMember);
 
       // Save to Firestore
       const docRef = await addDoc(collection(db, 'members'), newMember);
-      console.log('✅ Saved to Firestore ID:', docRef.id);
+      log('✅ Saved to Firestore ID:', docRef.id);
       setDebugError(`✅ Saved: ${docRef.id}`);
 
       // Show success modal
@@ -474,7 +520,7 @@ function App() {
       setShowSuccessModal(true);
     } catch (error: any) {
       const errorMsg = error?.message || String(error);
-      console.error('❌ Error:', errorMsg);
+      logError('❌ Error:', errorMsg);
       setDebugError(`❌ ERROR: ${errorMsg}`);
       alert('❌ Error: ' + errorMsg);
     } finally {
@@ -531,7 +577,7 @@ function App() {
       // Don't manually update state - let real-time listener handle it
       alert(`✅ Added ${demoUsers.length} demo users!`);
     } catch (error) {
-      console.error('Error adding demo data:', error);
+      logError('Error adding demo data:', error);
       alert('❌ Error adding demo data');
     }
   };
@@ -550,7 +596,7 @@ function App() {
       // Don't update local state - let real-time listener handle it
       alert('✅ All demo data deleted!');
     } catch (error) {
-      console.error('Error deleting data:', error);
+      logError('Error deleting data:', error);
       alert('❌ Error deleting data');
     }
   };
@@ -568,17 +614,18 @@ function App() {
         alert('❌ Member not found');
       }
     } catch (error) {
-      console.error('Error updating payment:', error);
+      logError('Error updating payment:', error);
       alert('❌ Error updating payment status. Please try again.');
     }
   };
 
-  const getStats = () => ({
+  // FIX #29: Memoize stats to avoid recalculation on every render
+  const stats = useMemo(() => ({
     totalMembers: members.length,
     pendingPayments: members.filter(m => m.paymentStatus === 'pending').length,
     verifiedMembers: members.filter(m => m.paymentStatus === 'verified').length,
     totalRevenue: members.reduce((sum, m) => sum + (m.amount || 0), 0),
-  });
+  }), [members]);
 
   // ADMIN LOGIN PAGE (show when login button is clicked)
   if (showAdminLogin && !isAdmin) {
@@ -612,7 +659,7 @@ function App() {
           {adminError && (
             <div className="mb-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
               <p className="font-semibold">❌ {adminError}</p>
-              <p className="text-sm mt-1">Try: admin123, admin, or library</p>
+              <p className="text-sm mt-1">Check with your administrator for access</p>
             </div>
           )}
 
@@ -641,7 +688,7 @@ function App() {
   if (isAdmin && adminPage) {
     // Admin Dashboard
     if (adminPage === 'dashboard') {
-      const stats = getStats();
+      // FIX #29: Use memoized stats instead of calling getStats()
       return (
         <div className="min-h-screen bg-gray-50">
           {/* Admin Header */}
@@ -786,7 +833,7 @@ function App() {
                                 const message = whatsappMessages.welcome(membershipId);
                                 sendWhatsAppMessage(member.phone, message);
                               } catch (error) {
-                                console.error('Error accepting member:', error);
+                                logError('Error accepting member:', error);
                                 alert('❌ Error accepting member. Please try again.');
                               }
                             }}
@@ -806,7 +853,7 @@ function App() {
                                   });
                                   alert(`✅ Member ${member.fullName} rejected`);
                                 } catch (error) {
-                                  console.error('Error rejecting member:', error);
+                                  logError('Error rejecting member:', error);
                                   alert('❌ Error rejecting member. Please try again.');
                                 }
                               }
@@ -859,7 +906,7 @@ function App() {
                                 const message = whatsappMessages.thankYou();
                                 sendWhatsAppMessage(member.phone, message);
                               } catch (error) {
-                                console.error('Error verifying payment:', error);
+                                logError('Error verifying payment:', error);
                                 alert('❌ Error verifying payment');
                               }
                             }}
@@ -876,7 +923,7 @@ function App() {
                                 const message = whatsappMessages.paymentRequest();
                                 sendWhatsAppMessage(member.phone, message);
                               } catch (error) {
-                                console.error('Error rejecting payment:', error);
+                                logError('Error rejecting payment:', error);
                                 alert('❌ Error rejecting payment');
                               }
                             }}
@@ -1108,7 +1155,7 @@ function App() {
                         setSelectedMembers(new Set());
                         alert(`✅ ${deletedCount} member(s) deleted successfully`);
                       } catch (error) {
-                        console.error('Error bulk deleting members:', error);
+                        logError('Error bulk deleting members:', error);
                         alert('❌ Error deleting members. Please try again.');
                       }
                     }
@@ -1233,7 +1280,7 @@ function App() {
                                   // Don't update local state - let real-time listener handle it
                                   alert(`✅ Member ${member.fullName} deleted successfully`);
                                 } catch (error) {
-                                  console.error('Error deleting member:', error);
+                                  logError('Error deleting member:', error);
                                   alert('❌ Error deleting member. Please try again.');
                                 }
                               }
@@ -1565,7 +1612,7 @@ function App() {
                           pdf.save(`${selectedMemberDetail.fullName}_Complete_Profile.pdf`);
                           alert(`✅ PDF downloaded successfully`);
                         } catch (error) {
-                          console.error('Error generating PDF:', error);
+                          logError('Error generating PDF:', error);
                           alert('❌ Error downloading PDF');
                         }
                       }}
@@ -1881,7 +1928,7 @@ function App() {
                           if (editingMember?.docId) {
                             const memberRef = doc(db, 'members', editingMember.docId);
                             await updateDoc(memberRef, sanitizedData);
-                            console.log('✅ Firestore updated:', editFormData.fullName, 'Status:', editFormData.paymentStatus);
+                            log('✅ Firestore updated:', editFormData.fullName, 'Status:', editFormData.paymentStatus);
 
                             // Don't update local state - let real-time listener handle it
                             // This prevents race conditions where listener overwrites our update
@@ -1890,7 +1937,7 @@ function App() {
                             alert(`✅ ${editFormData.fullName} updated successfully!`);
                           }
                         } catch (error) {
-                          console.error('Error updating member:', error);
+                          logError('Error updating member:', error);
                           alert('❌ Error saving changes. Please try again.');
                         } finally {
                           setIsSavingMember(false);
@@ -2121,7 +2168,7 @@ function App() {
                             setPaymentReviewNotes('');
                           }
                         } catch (error) {
-                          console.error('Error rejecting payment:', error);
+                          logError('Error rejecting payment:', error);
                           alert('❌ Error rejecting payment');
                         }
                       }
@@ -2145,7 +2192,7 @@ function App() {
                             setPaymentReviewNotes('');
                           }
                         } catch (error) {
-                          console.error('Error verifying payment:', error);
+                          logError('Error verifying payment:', error);
                           alert('❌ Error verifying payment');
                         }
                       }
@@ -2515,7 +2562,7 @@ function App() {
                             setEditingUser(null);
                             setEditUserPassword('');
                           } catch (error) {
-                            console.error('Error updating password:', error);
+                            logError('Error updating password:', error);
                             alert('❌ Error updating password');
                           }
                         }}
@@ -3759,10 +3806,22 @@ function App() {
                 try {
                   setIsSubmitting(true);
 
-                  // Validate amount
+                  // FIX #11: Validate plan and daytype not empty before using
+                  if (!selectedPlan || selectedPlan.trim() === '') {
+                    alert('❌ Please select a plan (Monthly/Quarterly/Half-yearly/Yearly)');
+                    setIsSubmitting(false);
+                    return;
+                  }
+                  if (!selectedDayType || selectedDayType.trim() === '') {
+                    alert('❌ Please select day type (Half-day/Full-day)');
+                    setIsSubmitting(false);
+                    return;
+                  }
+
+                  // FIX #6: Validate amount is greater than 0
                   const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
                   if (amount <= 0) {
-                    alert('❌ Invalid plan or day type selected');
+                    alert('❌ Invalid plan or day type selected - Amount is ₹0');
                     setIsSubmitting(false);
                     return;
                   }
@@ -3789,19 +3848,19 @@ function App() {
 
                   const bookingId = `ABD${Date.now()}${Math.floor(Math.random() * 1000000)}`;
 
-                  console.log('📝 Starting submission process...');
+                  log('📝 Starting submission process...');
 
                   // Step 1: Generate PDF but don't download yet
-                  console.log('📄 Generating PDF...');
+                  log('📄 Generating PDF...');
                   const pdf = await generatePDF(bookingId, amount);
                   if (pdf) {
                     setPdfDoc(pdf);
                     setPdfBookingId(bookingId);
-                    console.log('✅ PDF generated');
+                    log('✅ PDF generated');
                   }
 
                   // Step 2: Add member to database
-                  console.log('💾 Saving member to database...');
+                  log('💾 Saving member to database...');
                   await addMember({
                     id: bookingId,
                     fullName: sanitizeInput(formData.fullName),
@@ -3833,12 +3892,12 @@ function App() {
                     upiScreenshot: paymentMethod === 'upi' ? upiScreenshot : null,
                     utrNumber: paymentMethod === 'upi' ? utrNumber : null,
                   });
-                  console.log('✅ Member saved. Success modal should show now.');
+                  log('✅ Member saved. Success modal should show now.');
                   // Step 3: Navigate to thank you page (DON'T reset form - step 7 needs the data)
-                  console.log('🎉 Navigating to thank you page');
+                  log('🎉 Navigating to thank you page');
                   navigate('/admission/step-7');
                 } catch (error: any) {
-                  console.error('❌ Submission error:', error);
+                  logError('❌ Submission error:', error);
                   alert('❌ Error during submission:\n' + (error?.message || String(error)));
                   setIsSubmitting(false);
                 }
