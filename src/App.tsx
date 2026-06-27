@@ -236,10 +236,11 @@ function App() {
   }, []);
 
   // QR Scanner initialization
+  // FIX #109: Use useState instead of global flag
   useEffect(() => {
-    if (adminPage === 'scanner' && !scannedBookingId && !window.__qrScannerActive) {
+    if (adminPage === 'scanner' && !scannedBookingId && !scannerActive) {
       try {
-        window.__qrScannerActive = true;
+        setScannerActive(true);
         const qrScanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: 250 }, false);
 
         qrScanner.render(
@@ -248,11 +249,12 @@ function App() {
             const bookingId = decodedText.includes(':') ? decodedText.split(':')[1] : decodedText;
             setScannedBookingId(bookingId);
             qrScanner.clear();
-            window.__qrScannerActive = false;
+            setScannerActive(false);
           },
           (error) => {
             if (error && error.toString().includes('NotAllowedError')) {
               alert('❌ Camera access denied! Please allow camera permission and try again.');
+              setScannerActive(false);
             }
           }
         );
@@ -260,17 +262,18 @@ function App() {
         return () => {
           try {
             qrScanner.clear();
-            window.__qrScannerActive = false;
+            setScannerActive(false);
           } catch (err) {
             // Silently ignore QR scanner cleanup errors
+            setScannerActive(false);
           }
         };
       } catch (error) {
         logError('QR Scanner error:', error);
-        window.__qrScannerActive = false;
+        setScannerActive(false);
       }
     }
-  }, [adminPage, scannedBookingId]);
+  }, [adminPage, scannedBookingId, scannerActive]);
 
   // FIX #96: Validate input name exists before setting
   const handleInputChange = (e: any) => {
