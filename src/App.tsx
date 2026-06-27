@@ -193,6 +193,10 @@ function App() {
   // FIX #215: Track ongoing operations to prevent concurrent writes
   const ongoingOperationsRef = useRef<Set<string>>(new Set());
 
+  // FIX #217: Rate limiting for admin login
+  const loginAttemptsRef = useRef<{ count: number; timestamp: number }>({ count: 0, timestamp: 0 });
+  const [loginLocked, setLoginLocked] = useState(false);
+
   // FIX #203: Cleanup effect - mark as unmounted
   useEffect(() => {
     return () => {
@@ -614,24 +618,39 @@ function App() {
 
   // Admin Functions
   const handleAdminLogin = (password: string) => {
+    const now = Date.now();
+    const { count, timestamp } = loginAttemptsRef.current;
+
+    if (count >= 5 && now - timestamp < 300000) {
+      setAdminError('Too many attempts. Try again later.');
+      return;
+    }
+    if (now - timestamp > 300000) {
+      loginAttemptsRef.current = { count: 0, timestamp: now };
+    }
+
     const pwd = password.trim();
-    // FIX: Check both hardcoded and custom (localStorage) admin password
     const customAdminPassword = localStorage.getItem('customAdminPassword');
     const validPasswords = [...ADMIN_PASSWORDS];
     if (customAdminPassword) validPasswords.push(customAdminPassword);
 
     if (validPasswords.includes(pwd)) {
+      loginAttemptsRef.current = { count: 0, timestamp: now };
+      setLoginLocked(false);
       setIsAdmin(true);
       setAdminPassword('');
       setAdminError('');
       setAdminPage('dashboard');
       setShowAdminLogin(false);
-      // FIX: Navigate to proper admin URL
       setTimeout(() => {
         navigate('/admin/dashboard', { replace: true });
       }, 0);
     } else {
+      loginAttemptsRef.current = { count: count + 1, timestamp: timestamp === 0 ? now : timestamp };
       setAdminError('Invalid password!');
+      if (loginAttemptsRef.current.count >= 5) {
+        setLoginLocked(true);
+      }
       setTimeout(() => setAdminError(''), 3000);
     }
   };
