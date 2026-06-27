@@ -53,6 +53,90 @@ const generateMembershipId = (existingIds: string[] = []) => {
   return id;
 };
 
+// ---- CSV import/export (no external library) ----
+// [field on member object, column header in the spreadsheet]
+const MEMBER_COLUMNS: [string, string][] = [
+  ['id', 'Membership ID'],
+  ['fullName', 'Name'],
+  ['email', 'Email'],
+  ['phone', 'Phone'],
+  ['plan', 'Plan'],
+  ['slot', 'Slot'],
+  ['amount', 'Amount'],
+  ['paymentStatus', 'Payment Status'],
+  ['paymentUTR', 'UTR'],
+  ['startDate', 'Start Date'],
+  ['gender', 'Gender'],
+  ['dateOfBirth', 'DOB'],
+  ['emergencyContactName', 'Emergency Contact'],
+  ['emergencyContactPhone', 'Emergency Phone'],
+  ['createdAt', 'Created At'],
+];
+
+const csvEscape = (v: any) => {
+  const s = (v ?? '').toString();
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+};
+
+const membersToCSV = (members: any[]) => {
+  const header = MEMBER_COLUMNS.map(c => c[1]).join(',');
+  const rows = members.map(m =>
+    MEMBER_COLUMNS.map(([field]) => csvEscape(field === 'paymentUTR' ? (m.paymentUTR ?? m.utrNumber ?? '') : m[field])).join(',')
+  );
+  return [header, ...rows].join('\r\n');
+};
+
+// Minimal RFC-4180-ish CSV parser (handles quotes, commas and newlines in fields).
+const parseCSV = (text: string): string[][] => {
+  const rows: string[][] = [];
+  let row: string[] = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else if (c !== '\r') field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+};
+
+const downloadFile = (filename: string, content: string, type = 'text/csv;charset=utf-8') => {
+  const blob = new Blob(['﻿' + content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+// Push one member to a Google Sheet via a user-deployed Apps Script web app.
+// text/plain + no-cors keeps it a "simple" request (no CORS preflight that
+// Apps Script can't answer); we fire-and-forget since the response is opaque.
+const syncMemberToSheet = async (member: any) => {
+  const url = localStorage.getItem('sheetWebhookUrl');
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        id: member.id, fullName: member.fullName, email: member.email, phone: member.phone,
+        plan: member.plan, slot: member.slot, amount: member.amount,
+        paymentStatus: member.paymentStatus, paymentUTR: member.paymentUTR ?? member.utrNumber ?? '',
+        startDate: member.startDate, createdAt: member.createdAt ?? new Date().toISOString(),
+      }),
+    });
+  } catch (e) {
+    // Best-effort; failures must never block registration.
+    if (import.meta.env.DEV) console.error('Sheet sync failed:', e);
+  }
+};
+
 // Membership duration in months, keyed by the first word of the stored plan
 // string (e.g. "Monthly Half-day" -> "Monthly"). Used to derive the expiry date
 // from startDate, since no explicit expiry is persisted.
@@ -220,6 +304,11 @@ function App() {
   const [selectedPaymentForReview, setSelectedPaymentForReview] = useState<any>(null);
   const [paymentReviewNotes, setPaymentReviewNotes] = useState('');
   const [reminderType, setReminderType] = useState<'payment' | 'welcome' | 'renewal'>('renewal');
+  // Import / export / Google-Sheet sync
+  const [showDataPanel, setShowDataPanel] = useState(false);
+  const [sheetUrl, setSheetUrl] = useState(() => localStorage.getItem('sheetWebhookUrl') || '');
+  const [importStatus, setImportStatus] = useState('');
+  const importFileRef = useRef<HTMLInputElement>(null);
   const [editingMember, setEditingMember] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>(null);
   const [scannedBookingId, setScannedBookingId] = useState('');
@@ -761,6 +850,9 @@ function App() {
       log('✅ Saved to Firestore ID:', docRef.id);
       setDebugError(`✅ Saved: ${docRef.id}`);
 
+      // Best-effort live sync to the configured Google Sheet (never blocks).
+      syncMemberToSheet(newMember);
+
       // Show success modal
       setSuccessMemberId(docRef.id);
       setShowSuccessModal(true);
@@ -866,6 +958,73 @@ function App() {
     if (!transitions[from]?.includes(to)) return false;
     if (to === 'verified' && (!amount || amount <= 0)) return false;
     return true;
+  };
+
+  // Export all active members to a CSV file (opens in Excel / Google Sheets).
+  const handleExportCSV = () => {
+    const active = getActiveMembers(members);
+    if (active.length === 0) { alert('No members to export.'); return; }
+    const date = new Date().toISOString().split('T')[0];
+    downloadFile(`members_${date}.csv`, membersToCSV(active));
+  };
+
+  // Import members from a CSV whose header row matches the export columns.
+  const handleImportCSV = async (file: File) => {
+    try {
+      setImportStatus('Reading file…');
+      const text = await file.text();
+      const rows = parseCSV(text);
+      if (rows.length < 2) { setImportStatus('❌ File looks empty.'); return; }
+      const header = rows[0].map(h => h.trim().toLowerCase());
+      const colIndex = (label: string) => header.indexOf(label.toLowerCase());
+      const idxName = colIndex('Name'), idxEmail = colIndex('Email'), idxPhone = colIndex('Phone');
+      if (idxName === -1 || idxEmail === -1 || idxPhone === -1) {
+        setImportStatus('❌ CSV must have at least Name, Email and Phone columns.');
+        return;
+      }
+      const existingEmails = new Set(members.map(m => (m.email || '').toLowerCase()));
+      const existingPhones = new Set(members.map(m => m.phone));
+      const existingIds = members.map(m => m.id);
+      let imported = 0, skipped = 0;
+      for (let r = 1; r < rows.length; r++) {
+        const cell = (label: string) => { const i = colIndex(label); return i === -1 ? '' : (rows[r][i] || '').trim(); };
+        const fullName = cell('Name');
+        const email = cell('Email').toLowerCase();
+        const phone = cell('Phone').replace(/[^0-9]/g, '').slice(0, 10);
+        if (!fullName || !email || phone.length !== 10) { skipped++; continue; }
+        if (existingEmails.has(email) || existingPhones.has(phone)) { skipped++; continue; }
+        const id = (cell('Membership ID') || generateMembershipId(existingIds));
+        existingIds.push(id); existingEmails.add(email); existingPhones.add(phone);
+        const member = {
+          id, fullName, email, phone,
+          plan: cell('Plan'), slot: cell('Slot'),
+          amount: Number(cell('Amount')) || 0,
+          paymentStatus: cell('Payment Status') || 'pending',
+          paymentUTR: cell('UTR'), startDate: cell('Start Date'),
+          gender: cell('Gender'), dateOfBirth: cell('DOB'),
+          emergencyContactName: cell('Emergency Contact'), emergencyContactPhone: cell('Emergency Phone'),
+          createdAt: cell('Created At') || new Date().toISOString(),
+          deleted: false, importedAt: new Date().toISOString(),
+        };
+        await addDoc(collection(db, 'members'), member);
+        syncMemberToSheet(member);
+        imported++;
+        setImportStatus(`Importing… ${imported} added`);
+      }
+      setImportStatus(`✅ Done: ${imported} imported, ${skipped} skipped (duplicates/invalid).`);
+    } catch (e) {
+      logError('Import failed:', e);
+      setImportStatus('❌ Import failed. Check the file format.');
+    }
+  };
+
+  // Push every existing active member to the configured Google Sheet.
+  const handleSyncAllToSheet = async () => {
+    if (!localStorage.getItem('sheetWebhookUrl')) { alert('Save your Google Sheet link first.'); return; }
+    const active = getActiveMembers(members);
+    if (!confirm(`Send all ${active.length} members to the Google Sheet?`)) return;
+    for (const m of active) { await syncMemberToSheet(m); await new Promise(res => setTimeout(res, 120)); }
+    alert(`✅ Sent ${active.length} members to the sheet.`);
   };
 
   const updateMemberPayment = async (id: string, status: string) => {
@@ -1475,6 +1634,95 @@ function App() {
               </div>
               {searchQuery && <p className="text-sm text-gray-600 mt-2">Found {filtered.length} member(s)</p>}
             </div>
+
+            {/* Import / Export / Google Sheet toolbar */}
+            <div className="mb-6 flex flex-wrap gap-3">
+              <button onClick={handleExportCSV} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm">
+                ⬇️ Export CSV
+              </button>
+              <button onClick={() => importFileRef.current?.click()} className="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 text-sm">
+                ⬆️ Import CSV
+              </button>
+              <button onClick={() => setShowDataPanel(true)} className="px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 text-sm">
+                📊 Google Sheet {localStorage.getItem('sheetWebhookUrl') ? '✓' : ''}
+              </button>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportCSV(f); e.target.value = ''; }}
+              />
+              {importStatus && <span className="self-center text-sm font-semibold text-gray-700">{importStatus}</span>}
+            </div>
+
+            {showDataPanel && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">📊 Live Google Sheet Sync</h2>
+                    <button onClick={() => setShowDataPanel(false)} className="text-2xl text-gray-500 hover:text-gray-700">×</button>
+                  </div>
+
+                  <p className="text-sm text-gray-600 mb-2">Paste your Google Apps Script Web App URL. Once saved, every new member is added to your sheet automatically.</p>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={sheetUrl}
+                      onChange={(e) => setSheetUrl(e.target.value)}
+                      placeholder="https://script.google.com/macros/s/..../exec"
+                      className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm"
+                    />
+                    <button
+                      onClick={() => {
+                        const u = sheetUrl.trim();
+                        if (u && !/^https:\/\/script\.google\.com\/.*\/exec$/.test(u)) {
+                          if (!confirm('That does not look like an Apps Script /exec URL. Save anyway?')) return;
+                        }
+                        if (u) localStorage.setItem('sheetWebhookUrl', u); else localStorage.removeItem('sheetWebhookUrl');
+                        alert(u ? '✅ Google Sheet link saved!' : 'Link cleared.');
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
+                    >Save</button>
+                  </div>
+                  <button onClick={handleSyncAllToSheet} className="w-full mb-5 px-4 py-2 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-700 text-sm">
+                    🔄 Send all existing members to the sheet
+                  </button>
+
+                  <div className="bg-gray-50 border rounded-lg p-4">
+                    <p className="font-bold text-sm mb-2">One-time setup (≈3 min):</p>
+                    <ol className="text-xs text-gray-700 list-decimal ml-4 space-y-1 mb-3">
+                      <li>Open your Google Sheet → <b>Extensions → Apps Script</b></li>
+                      <li>Delete any code, paste the code below, click <b>Save</b></li>
+                      <li><b>Deploy → New deployment → Web app</b></li>
+                      <li>Execute as: <b>Me</b>; Who has access: <b>Anyone</b> → <b>Deploy</b></li>
+                      <li>Copy the <b>Web app URL</b> (ends with <code>/exec</code>) and paste it above → Save</li>
+                    </ol>
+                    <textarea
+                      readOnly
+                      onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                      className="w-full h-44 p-2 font-mono text-[11px] border rounded bg-white"
+                      value={`function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Members') || ss.getActiveSheet();
+  var d = JSON.parse(e.postData.contents);
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['Membership ID','Name','Email','Phone','Plan','Slot','Amount','Payment Status','UTR','Start Date','Created At']);
+  }
+  // update existing row if same Membership ID, else append
+  var ids = sheet.getRange(1,1,Math.max(sheet.getLastRow(),1),1).getValues().map(function(r){return r[0];});
+  var row = [d.id,d.fullName,d.email,d.phone,d.plan,d.slot,d.amount,d.paymentStatus,d.paymentUTR,d.startDate,d.createdAt];
+  var at = ids.indexOf(d.id);
+  if (at > 0) { sheet.getRange(at+1,1,1,row.length).setValues([row]); }
+  else { sheet.appendRow(row); }
+  return ContentService.createTextOutput('ok');
+}`}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Tip: name a tab “Members” in your sheet (optional).</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {selectedMembers.size > 0 && (
               <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg flex justify-between items-center">
