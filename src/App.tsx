@@ -43,6 +43,16 @@ const logError = (message: string, error?: any) => {
 // FIX #118: Centralized helper to filter out deleted members
 const getActiveMembers = (members: any[]) => members.filter(m => !m.deletedAt && !m.deleted);
 
+// Short membership id, e.g. "MEM7K2PX" (MEM + 5 chars). Pass the ids already in
+// use so we can regenerate on the rare collision and keep ids unique.
+const generateMembershipId = (existingIds: string[] = []) => {
+  let id = '';
+  do {
+    id = 'MEM' + (Math.random().toString(36).slice(2) + '00000').slice(0, 5).toUpperCase();
+  } while (existingIds.includes(id));
+  return id;
+};
+
 // Membership duration in months, keyed by the first word of the stored plan
 // string (e.g. "Monthly Half-day" -> "Monthly"). Used to derive the expiry date
 // from startDate, since no explicit expiry is persisted.
@@ -814,7 +824,7 @@ function App() {
     try {
       for (const user of demoUsers) {
         await addDoc(collection(db, 'members'), {
-          id: `ABD${Date.now()}${Math.floor(Math.random() * 1000000)}`,
+          id: generateMembershipId(),
           ...user,
           createdAt: new Date().toISOString(),
           deleted: false,
@@ -4298,7 +4308,7 @@ function App() {
                     }
                   }
 
-                  const bookingId = `ABD${Date.now()}${Math.floor(Math.random() * 1000000)}`;
+                  const bookingId = generateMembershipId(members.map(m => m.id));
 
                   log('📝 Starting submission process...');
 
@@ -4376,7 +4386,7 @@ function App() {
   // THANK YOU PAGE (shown after successful submission)
   if (step === 7) {
     const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
-    const bookingId = pdfBookingId || `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    const bookingId = pdfBookingId || generateMembershipId(members.map(m => m.id));
 
     return (
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white p-4">
