@@ -944,6 +944,12 @@ function App() {
                           </button>
                           <button
                             onClick={async () => {
+                              // FIX #209: Prevent double-deleting member
+                              if (member.deleted) {
+                                alert('⚠️ This member has already been rejected');
+                                return;
+                              }
+
                               if (confirm(`❌ Reject ${member.fullName}? This cannot be undone!`)) {
                                 try {
                                   const memberRef = doc(db, 'members', member.docId);
@@ -2268,6 +2274,12 @@ function App() {
                         return;
                       }
 
+                      // FIX #211: Prevent rejecting already rejected payment
+                      if (selectedPaymentForReview.paymentStatus === 'rejected') {
+                        alert('⚠️ This payment has already been rejected');
+                        return;
+                      }
+
                       if (confirm(`❌ Reject payment of ₹${selectedPaymentForReview.amount} for ${selectedPaymentForReview.fullName}?`)) {
                         paymentVerifyDebounceRef.current[selectedPaymentForReview.id] = true;
                         try {
@@ -2299,6 +2311,12 @@ function App() {
                       // FIX #201: Prevent multiple verify calls
                       if (paymentVerifyDebounceRef.current[selectedPaymentForReview.id]) {
                         alert('⏳ Already verifying payment...');
+                        return;
+                      }
+
+                      // FIX #211: Prevent verifying already verified payment
+                      if (selectedPaymentForReview.paymentStatus === 'verified') {
+                        alert('✅ This payment has already been verified');
                         return;
                       }
 
