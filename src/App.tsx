@@ -297,13 +297,17 @@ function App() {
               const data = doc.data();
               log('Doc ID:', doc.id, 'Deleted:', data.deleted, 'Name:', data.fullName);
               return {
-                id: data.id || doc.id, // Prefer data.id, fall back to docId
+                id: data.id || doc.id,
                 docId: doc.id,
                 ...data
               };
             })
-            .filter((m: any) => !m.deleted) // Filter out soft-deleted members
-            .filter((m: any, idx: number, arr: any[]) => arr.findIndex(x => x.id === m.id) === idx); // Remove duplicates by id
+            .reduce((acc: any[], member: any, idx: number, arr: any[]) => {
+              if (!member.deleted && !member.deletedAt && acc.findIndex(x => x.id === member.id) === -1) {
+                acc.push(member);
+              }
+              return acc;
+            }, []);
           log('✅ Members loaded from Firestore:', membersList.length, 'members');
           // FIX #203: Only setState if component is still mounted
           if (isMountedRef.current) {
