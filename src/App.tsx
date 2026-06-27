@@ -70,6 +70,10 @@ const logError = (message: string, error?: any) => {
   }
 };
 
+// FIX #118: Centralized helper to filter out deleted members
+const getActiveMembers = (members: any[]) => members.filter(m => !m.deleted);
+const getDeletedMembers = (members: any[]) => members.filter(m => m.deleted);
+
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -145,6 +149,12 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [scannerActive, setScannerActive] = useState(false);
   const [selectedMemberDetail, setSelectedMemberDetail] = useState<any>(null);
+
+  // FIX #106: Debounce refs for preventing multiple calls
+  const whatsappDebounceRef = useRef<{ [key: string]: number }>({});
+  const paymentVerifyDebounceRef = useRef<{ [key: string]: boolean }>({});
+  const formSubmitDebounceRef = useRef(0);
+  const listenerUnsubscribesRef = useRef<Array<() => void>>([]);
 
   // Persist admin login state
   useEffect(() => {
@@ -427,6 +437,13 @@ function App() {
 
   // WhatsApp Messages & Helper
   const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
+    // FIX #106: Prevent multiple calls within 2 seconds
+    const now = Date.now();
+    if (whatsappDebounceRef.current[phoneNumber] && now - whatsappDebounceRef.current[phoneNumber] < 2000) {
+      return; // Silently ignore rapid repeated calls
+    }
+    whatsappDebounceRef.current[phoneNumber] = now;
+
     // Sanitize phone number - keep only digits
     const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
 
@@ -467,6 +484,8 @@ function App() {
     if (page !== adminPage) {
       setPreviousAdminPage(adminPage);
       setAdminPage(page);
+      // FIX #113: Sync URL with page state
+      navigate(`/admin/${page}`, { replace: false });
     }
   };
 
@@ -645,12 +664,16 @@ function App() {
   };
 
   // FIX #29: Memoize stats to avoid recalculation on every render
-  const stats = useMemo(() => ({
-    totalMembers: members.length,
-    pendingPayments: members.filter(m => m.paymentStatus === 'pending').length,
-    verifiedMembers: members.filter(m => m.paymentStatus === 'verified').length,
-    totalRevenue: members.reduce((sum, m) => sum + (m.amount || 0), 0),
-  }), [members]);
+  // FIX #118: Filter out deleted members from stats
+  const stats = useMemo(() => {
+    const active = getActiveMembers(members);
+    return {
+      totalMembers: active.length,
+      pendingPayments: active.filter(m => m.paymentStatus === 'pending').length,
+      verifiedMembers: active.filter(m => m.paymentStatus === 'verified').length,
+      totalRevenue: active.reduce((sum, m) => sum + (m.amount || 0), 0),
+    };
+  }, [members]);
 
   // ADMIN LOGIN PAGE (show when login button is clicked)
   if (showAdminLogin && !isAdmin) {
@@ -822,12 +845,17 @@ function App() {
 
               {/* Section 1: New Admissions Pending */}
               <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h2 className="text-xl font-bold text-green-700 mb-4">🆕 New Admissions Pending ({members.filter(m => !m.membershipId).length})</h2>
-                {members.filter(m => !m.membershipId).length === 0 ? (
-                  <p className="text-gray-500">No pending admissions</p>
-                ) : (
-                  <div className="space-y-4">
-                    {members.filter(m => !m.membershipId).map(member => (
+                {/* FIX #118: Filter out deleted members from pending admissions */}
+                {(() => {
+                  const pendingAdmissions = getActiveMembers(members).filter(m => !m.membershipId);
+                  return (
+                    <>
+                      <h2 className="text-xl font-bold text-green-700 mb-4">🆕 New Admissions Pending ({pendingAdmissions.length})</h2>
+                      {pendingAdmissions.length === 0 ? (
+                        <p className="text-gray-500">No pending admissions</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {pendingAdmissions.map(member => (
                       <div key={member.id} className="border-2 border-green-200 p-4 rounded-lg bg-green-50">
                         <div className="grid grid-cols-2 gap-4 mb-4">
                           <div>
@@ -889,19 +917,27 @@ function App() {
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Section 2: Pending Payments */}
               <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h2 className="text-xl font-bold text-orange-700 mb-4">💰 Pending Payments to Verify ({members.filter(m => m.paymentStatus === 'pending').length})</h2>
-                {members.filter(m => m.paymentStatus === 'pending').length === 0 ? (
-                  <p className="text-gray-500">No pending payments</p>
-                ) : (
-                  <div className="space-y-4">
-                    {members.filter(m => m.paymentStatus === 'pending').map(member => (
+                {/* FIX #118: Filter out deleted members from pending payments */}
+                {(() => {
+                  const pendingPayments = getActiveMembers(members).filter(m => m.paymentStatus === 'pending');
+                  return (
+                    <>
+                      <h2 className="text-xl font-bold text-orange-700 mb-4">💰 Pending Payments to Verify ({pendingPayments.length})</h2>
+                      {pendingPayments.length === 0 ? (
+                        <p className="text-gray-500">No pending payments</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {pendingPayments.map(member => (
                       <div key={member.id} className="border-2 border-orange-200 p-4 rounded-lg bg-orange-50">
                         <div className="grid grid-cols-2 gap-4 mb-4">
                           <div>
@@ -958,9 +994,12 @@ function App() {
                           </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Section 3: Renewals Due Soon */}
@@ -3915,7 +3954,8 @@ function App() {
                     amount: amount,
                     paymentMethod: paymentMethod,
                     upiScreenshot: paymentMethod === 'upi' ? upiScreenshot : null,
-                    utrNumber: paymentMethod === 'upi' ? utrNumber : null,
+                    // FIX #114: Sanitize utrNumber
+                    utrNumber: paymentMethod === 'upi' ? sanitizeInput(utrNumber) : null,
                   });
                   log('✅ Member saved. Success modal should show now.');
                   // Step 3: Navigate to thank you page (DON'T reset form - step 7 needs the data)
