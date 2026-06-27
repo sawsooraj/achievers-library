@@ -1519,7 +1519,10 @@ function App() {
                         </div>
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Pin Code</label>
-                          <input type="text" value={editFormData.tempPincode || ''} onChange={(e) => setEditFormData({...editFormData, tempPincode: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.tempPincode || ''} onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                          setEditFormData({...editFormData, tempPincode: val});
+                        }} maxLength="6" className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
 
@@ -1539,7 +1542,10 @@ function App() {
                         </div>
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Pin Code</label>
-                          <input type="text" value={editFormData.permPincode || ''} onChange={(e) => setEditFormData({...editFormData, permPincode: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.permPincode || ''} onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                          setEditFormData({...editFormData, permPincode: val});
+                        }} maxLength="6" className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
                     </div>
@@ -2874,7 +2880,10 @@ function App() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1 text-gray-700">Postal Code / Pin Code <span className="text-red-600">*</span></label>
-                  <input type="text" value={formData.tempPincode || ''} onChange={(e) => setFormData({...formData, tempPincode: e.target.value})} placeholder="e.g., 110001" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
+                  <input type="text" value={formData.tempPincode || ''} onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                      setFormData({...formData, tempPincode: val});
+                    }} placeholder="e.g., 110001" maxLength="6" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
                 </div>
               </div>
             </div>
@@ -2924,7 +2933,10 @@ function App() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-1 text-gray-700">Postal Code / Pin Code <span className="text-red-600">*</span></label>
-                    <input type="text" value={formData.permPincode || ''} onChange={(e) => setFormData({...formData, permPincode: e.target.value})} placeholder="e.g., 110001" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
+                    <input type="text" value={formData.permPincode || ''} onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                      setFormData({...formData, permPincode: val});
+                    }} maxLength="6" placeholder="e.g., 110001" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
                   </div>
                 </div>
               </div>
