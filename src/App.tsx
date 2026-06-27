@@ -156,6 +156,16 @@ function App() {
   const formSubmitDebounceRef = useRef(0);
   const listenerUnsubscribesRef = useRef<Array<() => void>>([]);
 
+  // FIX #203: Track mounted state to prevent setState in unmounted component
+  const isMountedRef = useRef(true);
+
+  // FIX #203: Cleanup effect - mark as unmounted
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Persist admin login state
   useEffect(() => {
     localStorage.setItem('isAdmin', String(isAdmin));
@@ -212,13 +222,17 @@ function App() {
             .filter((m: any) => !m.deleted) // Filter out soft-deleted members
             .filter((m: any, idx: number, arr: any[]) => arr.findIndex(x => x.id === m.id) === idx); // Remove duplicates by id
           log('✅ Members loaded from Firestore:', membersList.length, 'members');
-          setMembers(membersList as any[]);
+          // FIX #203: Only setState if component is still mounted
+          if (isMountedRef.current) {
+            setMembers(membersList as any[]);
+          }
         },
         (error) => {
           logError('❌ Firestore listener error:', error);
           log('Loading members from localStorage as fallback...');
           const saved = localStorage.getItem('members');
-          if (saved) setMembers(JSON.parse(saved));
+          // FIX #203: Only setState if component is still mounted
+          if (isMountedRef.current && saved) setMembers(JSON.parse(saved));
         }
       );
 
@@ -2243,7 +2257,14 @@ function App() {
                   </button>
                   <button
                     onClick={async () => {
+                      // FIX #201: Prevent multiple reject calls
+                      if (paymentVerifyDebounceRef.current[selectedPaymentForReview.id]) {
+                        alert('⏳ Already processing payment...');
+                        return;
+                      }
+
                       if (confirm(`❌ Reject payment of ₹${selectedPaymentForReview.amount} for ${selectedPaymentForReview.fullName}?`)) {
+                        paymentVerifyDebounceRef.current[selectedPaymentForReview.id] = true;
                         try {
                           const member = members.find(m => m.id === selectedPaymentForReview.id);
                           if (member?.docId) {
@@ -2259,6 +2280,8 @@ function App() {
                         } catch (error) {
                           logError('Error rejecting payment:', error);
                           alert('❌ Error rejecting payment');
+                        } finally {
+                          paymentVerifyDebounceRef.current[selectedPaymentForReview.id] = false;
                         }
                       }
                     }}
@@ -2268,7 +2291,14 @@ function App() {
                   </button>
                   <button
                     onClick={async () => {
+                      // FIX #201: Prevent multiple verify calls
+                      if (paymentVerifyDebounceRef.current[selectedPaymentForReview.id]) {
+                        alert('⏳ Already verifying payment...');
+                        return;
+                      }
+
                       if (confirm(`✅ Verify payment of ₹${selectedPaymentForReview.amount} for ${selectedPaymentForReview.fullName}?`)) {
+                        paymentVerifyDebounceRef.current[selectedPaymentForReview.id] = true;
                         try {
                           const member = members.find(m => m.id === selectedPaymentForReview.id);
                           if (member?.docId) {
@@ -2283,6 +2313,8 @@ function App() {
                         } catch (error) {
                           logError('Error verifying payment:', error);
                           alert('❌ Error verifying payment');
+                        } finally {
+                          paymentVerifyDebounceRef.current[selectedPaymentForReview.id] = false;
                         }
                       }
                     }}
