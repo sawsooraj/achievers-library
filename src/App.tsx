@@ -57,16 +57,16 @@ const sanitizeHtml = (input: string) => {
 
 // LOGGING (FIX #1: Console.log in production)
 const log = (message: string, data?: any) => {
-  if (process.env.NODE_ENV !== 'production') {
-    if (data) log(message, data);
-    else log(message);
+  if (import.meta.env.DEV) {
+    if (data !== undefined) console.log(message, data);
+    else console.log(message);
   }
 };
 
 const logError = (message: string, error?: any) => {
-  if (process.env.NODE_ENV !== 'production') {
-    if (error) logError(message, error);
-    else logError(message);
+  if (import.meta.env.DEV) {
+    if (error !== undefined) console.error(message, error);
+    else console.error(message);
   }
 };
 
@@ -78,6 +78,16 @@ const getDeletedMembers = (members: any[]) => members.filter(m => m.deleted);
 const getQueryParams = (searchString: string) => {
   const params = new URLSearchParams(searchString);
   return Object.fromEntries(params);
+};
+
+// Safe JSON.parse for localStorage reads — corrupted data must never crash the app
+const safeJSONParse = <T,>(raw: string | null, fallback: T): T => {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
 };
 
 // FIX #213: Retry mechanism for failed async operations
@@ -162,12 +172,12 @@ function App() {
   const [previousAdminPage, setPreviousAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats' | 'users'>('dashboard');
   // FIX: Load users from localStorage so password changes persist
   const [users, setUsers] = useState<any[]>(() => {
-    const saved = localStorage.getItem('adminUsers');
-    if (saved) return JSON.parse(saved);
-    return [
+    const defaults = [
       { id: 'admin1', name: 'Admin', role: 'admin', password: 'admin123', email: 'admin@library.com' },
       { id: 'staff1', name: 'Staff Member', role: 'staff', password: 'staff123', email: 'staff@library.com' },
     ];
+    const parsed = safeJSONParse<any[]>(localStorage.getItem('adminUsers'), defaults);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaults;
   });
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editUserPassword, setEditUserPassword] = useState('');
@@ -178,7 +188,6 @@ function App() {
   const [editFormData, setEditFormData] = useState<any>(null);
   const [scannedBookingId, setScannedBookingId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [scannerActive, setScannerActive] = useState(false);
   const [selectedMemberDetail, setSelectedMemberDetail] = useState<any>(null);
 
   // FIX #106: Debounce refs for preventing multiple calls
@@ -192,6 +201,11 @@ function App() {
 
   // FIX #215: Track ongoing operations to prevent concurrent writes
   const ongoingOperationsRef = useRef<Set<string>>(new Set());
+
+  // Track the last query-string we auto-opened a modal for, so that a
+  // Firestore `members` update (which re-runs the URL effect) does not
+  // re-open a modal the user has just closed.
+  const lastModalSearchRef = useRef<string>('');
 
   // FIX #217: Rate limiting for admin login
   const loginAttemptsRef = useRef<{ count: number; timestamp: number }>({ count: 0, timestamp: 0 });
@@ -248,19 +262,30 @@ function App() {
 
       // Handle modal/detail views via query params
       // e.g., /admin/members?detail=memberId or /admin/payments?review=paymentId
-      if (queryParams.detail && members.length > 0) {
-        const member = members.find(m => m.docId === queryParams.detail);
-        if (member) setSelectedMemberDetail(member);
-      }
-      if (queryParams.review && members.length > 0) {
-        const payment = members.find(m => m.id === queryParams.review);
-        if (payment) setSelectedPaymentForReview(payment);
-      }
-      if (queryParams.edit) {
-        const member = members.find(m => m.docId === queryParams.edit);
-        if (member) {
-          setEditingMember(member);
-          setEditFormData({...member});
+      // Only auto-open when the query-string itself changed — otherwise a
+      // `members` listener update would re-open a modal the user just closed.
+      if (location.search !== lastModalSearchRef.current) {
+        let opened = false;
+        if (queryParams.detail && members.length > 0) {
+          const member = members.find(m => m.docId === queryParams.detail);
+          if (member) { setSelectedMemberDetail(member); opened = true; }
+        }
+        if (queryParams.review && members.length > 0) {
+          const payment = members.find(m => m.id === queryParams.review);
+          if (payment) { setSelectedPaymentForReview(payment); opened = true; }
+        }
+        if (queryParams.edit && members.length > 0) {
+          const member = members.find(m => m.docId === queryParams.edit);
+          if (member) {
+            setEditingMember(member);
+            setEditFormData({...member});
+            opened = true;
+          }
+        }
+        // Record the search only once a modal actually opened, so a deep-link
+        // that arrives before members have loaded still opens on the next run.
+        if (opened || (!queryParams.detail && !queryParams.review && !queryParams.edit)) {
+          lastModalSearchRef.current = location.search;
         }
       }
     } else if (pathname.startsWith('/admission/step-')) {
@@ -317,9 +342,8 @@ function App() {
         (error) => {
           logError('❌ Firestore listener error:', error);
           log('Loading members from localStorage as fallback...');
-          const saved = localStorage.getItem('members');
           // FIX #203: Only setState if component is still mounted
-          if (isMountedRef.current && saved) setMembers(JSON.parse(saved));
+          if (isMountedRef.current) setMembers(safeJSONParse<any[]>(localStorage.getItem('members'), []));
         }
       );
 
@@ -331,50 +355,39 @@ function App() {
       };
     } catch (error) {
       logError('Error setting up listener:', error);
-      const saved = localStorage.getItem('members');
-      if (saved) setMembers(JSON.parse(saved));
+      setMembers(safeJSONParse<any[]>(localStorage.getItem('members'), []));
     }
   }, []);
 
-  // QR Scanner initialization
-  // FIX #109: Use useState instead of global flag
+  // QR Scanner initialization.
+  // Depends only on [adminPage, scannedBookingId] — NOT on any state the effect
+  // itself sets, otherwise a camera failure re-arms the effect into an infinite
+  // re-init loop ("Maximum update depth exceeded"). The instance is tracked in a
+  // ref so we never construct two scanners, and the per-frame decode-error
+  // callback is intentionally ignored (it fires continuously when no QR code is
+  // in view — that is normal, not an error to surface).
   useEffect(() => {
-    if (adminPage === 'scanner' && !scannedBookingId && !scannerActive) {
-      try {
-        setScannerActive(true);
-        const qrScanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: 250 }, false);
+    if (adminPage !== 'scanner' || scannedBookingId) return;
 
-        qrScanner.render(
-          (decodedText) => {
-            // Extract booking ID from QR code
-            const bookingId = decodedText.includes(':') ? decodedText.split(':')[1] : decodedText;
-            setScannedBookingId(bookingId);
-            qrScanner.clear();
-            setScannerActive(false);
-          },
-          (error) => {
-            if (error && error.toString().includes('NotAllowedError')) {
-              alert('❌ Camera access denied! Please allow camera permission and try again.');
-              setScannerActive(false);
-            }
-          }
-        );
-
-        return () => {
-          try {
-            qrScanner.clear();
-            setScannerActive(false);
-          } catch (err) {
-            // Silently ignore QR scanner cleanup errors
-            setScannerActive(false);
-          }
-        };
-      } catch (error) {
-        logError('QR Scanner error:', error);
-        setScannerActive(false);
-      }
+    let qrScanner: Html5QrcodeScanner | null = null;
+    try {
+      qrScanner = new Html5QrcodeScanner('qr-reader', { fps: 10, qrbox: 250 }, false);
+      qrScanner.render(
+        (decodedText: string) => {
+          const bookingId = decodedText.includes(':') ? decodedText.split(':')[1] : decodedText;
+          setScannedBookingId(bookingId);
+          try { qrScanner?.clear(); } catch { /* ignore */ }
+        },
+        () => { /* per-frame decode errors are expected; ignore */ }
+      );
+    } catch (error) {
+      logError('QR Scanner error:', error);
     }
-  }, [adminPage, scannedBookingId, scannerActive]);
+
+    return () => {
+      try { qrScanner?.clear(); } catch { /* ignore cleanup errors */ }
+    };
+  }, [adminPage, scannedBookingId]);
 
   // FIX #96: Validate input name exists before setting
   const handleInputChange = (e: any) => {
@@ -659,7 +672,10 @@ function App() {
     }
   };
 
-  const addMember = async (memberData: any) => {
+  // Returns true only when the member was actually saved. The caller relies on
+  // this to decide whether to advance to the thank-you page — a duplicate or a
+  // write failure must NOT be treated as a successful submission.
+  const addMember = async (memberData: any): Promise<boolean> => {
     setIsSubmitting(true);
     setDebugError(null);
     try {
@@ -668,8 +684,7 @@ function App() {
       const emailDocs = await getDocs(emailQuery);
       if (emailDocs.docs.length > 0) {
         alert('❌ Email already exists! Member with this email is already registered.');
-        setIsSubmitting(false);
-        return;
+        return false;
       }
 
       // VALIDATION: Check for duplicate phone
@@ -677,8 +692,7 @@ function App() {
       const phoneDocs = await getDocs(phoneQuery);
       if (phoneDocs.docs.length > 0) {
         alert('❌ Phone number already exists! Member with this phone is already registered.');
-        setIsSubmitting(false);
-        return;
+        return false;
       }
 
       const newMember = {
@@ -699,11 +713,13 @@ function App() {
       // Show success modal
       setSuccessMemberId(docRef.id);
       setShowSuccessModal(true);
+      return true;
     } catch (error: any) {
       const errorMsg = error?.message || String(error);
       logError('❌ Error:', errorMsg);
       setDebugError(`❌ ERROR: ${errorMsg}`);
       alert('❌ Error: ' + errorMsg);
+      return false;
     } finally {
       setIsSubmitting(false);
     }
@@ -2139,8 +2155,9 @@ function App() {
                           return;
                         }
                         // Check if email is already taken (by another member)
-                        if (editFormData.email.toLowerCase() !== editingMember.email.toLowerCase()) {
-                          const emailExists = members.some(m => m.id !== editingMember.id && m.email.toLowerCase() === editFormData.email.toLowerCase());
+                        const newEmail = editFormData.email.toLowerCase();
+                        if (newEmail !== (editingMember.email || '').toLowerCase()) {
+                          const emailExists = members.some(m => m.id !== editingMember.id && (m.email || '').toLowerCase() === newEmail);
                           if (emailExists) {
                             alert('❌ This email is already registered');
                             return;
@@ -4201,7 +4218,7 @@ function App() {
 
                   // Step 2: Add member to database
                   log('💾 Saving member to database...');
-                  await addMember({
+                  const saved = await addMember({
                     id: bookingId,
                     fullName: sanitizeInput(formData.fullName),
                     email: sanitizeInput(formData.email.toLowerCase()),
@@ -4233,8 +4250,14 @@ function App() {
                     // FIX #114: Sanitize utrNumber
                     utrNumber: paymentMethod === 'upi' ? sanitizeInput(utrNumber) : null,
                   });
+                  // Step 3: Only advance to the thank-you page if the member was
+                  // actually saved. A duplicate/failed save must keep the user on
+                  // the payment step so they can correct and retry.
+                  if (!saved) {
+                    setIsSubmitting(false);
+                    return;
+                  }
                   log('✅ Member saved. Success modal should show now.');
-                  // Step 3: Navigate to thank you page (DON'T reset form - step 7 needs the data)
                   log('🎉 Navigating to thank you page');
                   navigate('/admission/step-7');
                 } catch (error: any) {
