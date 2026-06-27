@@ -118,7 +118,7 @@ function App() {
   const [utrNumber, setUtrNumber] = useState('');
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [pdfBookingId, setPdfBookingId] = useState<string | null>(null);
-  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+  // FIX #100: Removed unused selectedMembers state (dead code)
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(() => {
@@ -212,8 +212,12 @@ function App() {
         }
       );
 
-      // Cleanup listener on unmount
-      return () => unsubscribe();
+      // FIX #110: Add null check for unsubscribe function
+      return () => {
+        if (typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
+      };
     } catch (error) {
       logError('Error setting up listener:', error);
       const saved = localStorage.getItem('members');
@@ -466,8 +470,14 @@ function App() {
     }
   };
 
+  // FIX #108: Add validation guard
   const goBackAdmin = () => {
-    setAdminPage(previousAdminPage);
+    const validPages = ['dashboard', 'scanner', 'members', 'payments', 'reminders', 'seats', 'users'] as const;
+    if (previousAdminPage && validPages.includes(previousAdminPage as any)) {
+      setAdminPage(previousAdminPage);
+    } else {
+      setAdminPage('dashboard');
+    }
   };
 
   // Admin Functions
