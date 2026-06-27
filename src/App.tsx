@@ -6,14 +6,14 @@ import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { db } from './firebase';
-import { collection, addDoc, getDocs, updateDoc, doc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, updateDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
+import './index.css';
 
 // Configuration
-const ADMIN_PASSWORDS = ['admin123', 'admin', 'library'];
+const ADMIN_PASSWORDS = [import.meta.env.VITE_ADMIN_PASSWORD || 'tempAdmin#2026!Secure'];
 const TOTAL_SEATS = 69;
 const SEATS_PER_SLOT = 23;
 const SLOTS = ['9am-3pm', '3pm-9pm', '9am-9pm'] as const;
-import './index.css';
 
 const PLANS = {
   Monthly: { 'Half-day': 700, 'Full-day': 1200 },
@@ -53,6 +53,7 @@ function App() {
   };
 
   const [formData, setFormData] = useState(initialFormData);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSamePermanentAddress, setIsSamePermanentAddress] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('');
   const [selectedDayType, setSelectedDayType] = useState('');
@@ -120,8 +121,10 @@ function App() {
       setAdminPage(page || 'dashboard');
     } else if (pathname.startsWith('/admission/step-')) {
       const stepNum = parseInt(pathname.replace('/admission/step-', ''));
-      if (!isNaN(stepNum)) {
+      if (!isNaN(stepNum) && stepNum >= 1 && stepNum <= 7) {
         setStep(stepNum);
+      } else {
+        setStep(0);
       }
     } else {
       setStep(0);
@@ -142,11 +145,13 @@ function App() {
               const data = doc.data();
               console.log('Doc ID:', doc.id, 'Deleted:', data.deleted, 'Name:', data.fullName);
               return {
+                id: data.id || doc.id, // Prefer data.id, fall back to docId
                 docId: doc.id,
                 ...data
               };
             })
-            .filter((m: any) => !m.deleted); // Filter out soft-deleted members
+            .filter((m: any) => !m.deleted) // Filter out soft-deleted members
+            .filter((m: any, idx: number, arr: any[]) => arr.findIndex(x => x.id === m.id) === idx); // Remove duplicates by id
           console.log('✅ Members loaded from Firestore:', membersList.length, 'members');
           setMembers(membersList as any[]);
         },
@@ -183,7 +188,9 @@ function App() {
             window.__qrScannerActive = false;
           },
           (error) => {
-            // Silently ignore scanning errors
+            if (error && error.toString().includes('NotAllowedError')) {
+              alert('❌ Camera access denied! Please allow camera permission and try again.');
+            }
           }
         );
 
@@ -356,6 +363,11 @@ function App() {
     }
   };
 
+  // Input Sanitization Helper
+  const sanitizeInput = (input: string) => {
+    return input.trim().replace(/[<>]/g, '');
+  };
+
   // WhatsApp Messages & Helper
   const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
     // Sanitize phone number - keep only digits
@@ -376,7 +388,7 @@ function App() {
   };
 
   const whatsappMessages = {
-    welcome: (membershipId: number) => `Hello! Welcome to Achievers Library. Your Membership ID: ${membershipId}. Start studying and achieve your goals! 📚`,
+    welcome: (membershipId: string) => `Hello! Welcome to Achievers Library. Your Membership ID: ${membershipId}. Start studying and achieve your goals! 📚`,
     thankYou: () => `Thank you for your payment! Your membership is now active. Happy studying! 📚`,
     paymentRequest: () => `We didn't receive your payment confirmation. Please share the payment screenshot again. Thanks!`,
     renewal: (date: string) => `Your membership expires on ${date}. Renew now to continue studying! 📚`,
@@ -385,6 +397,7 @@ function App() {
   // Form reset function
   const resetForm = () => {
     setFormData(initialFormData);
+    setFormErrors({});
     setSelectedPlan('');
     setSelectedDayType('');
     setSelectedSlot('');
@@ -423,8 +436,27 @@ function App() {
     setIsSubmitting(true);
     setDebugError(null);
     try {
+      // VALIDATION: Check for duplicate email
+      const emailQuery = query(collection(db, 'members'), where('email', '==', memberData.email.toLowerCase()), where('deleted', '==', false));
+      const emailDocs = await getDocs(emailQuery);
+      if (emailDocs.docs.length > 0) {
+        alert('❌ Email already exists! Member with this email is already registered.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // VALIDATION: Check for duplicate phone
+      const phoneQuery = query(collection(db, 'members'), where('phone', '==', memberData.phone), where('deleted', '==', false));
+      const phoneDocs = await getDocs(phoneQuery);
+      if (phoneDocs.docs.length > 0) {
+        alert('❌ Phone number already exists! Member with this phone is already registered.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const newMember = {
         ...memberData,
+        email: memberData.email.toLowerCase(),
         createdAt: new Date().toISOString(),
         paymentStatus: 'pending',
         deleted: false,
@@ -438,7 +470,7 @@ function App() {
       setDebugError(`✅ Saved: ${docRef.id}`);
 
       // Show success modal
-      setSuccessMemberId(newMember.id);
+      setSuccessMemberId(docRef.id);
       setShowSuccessModal(true);
     } catch (error: any) {
       const errorMsg = error?.message || String(error);
@@ -490,19 +522,13 @@ function App() {
     try {
       for (const user of demoUsers) {
         await addDoc(collection(db, 'members'), {
-          id: `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+          id: `ABD${Date.now()}${Math.floor(Math.random() * 1000000)}`,
           ...user,
           createdAt: new Date().toISOString(),
-          verified: user.paymentStatus === 'verified',
+          deleted: false,
         });
       }
-      // Reload members
-      const querySnapshot = await getDocs(collection(db, 'members'));
-      const membersList = querySnapshot.docs.map(doc => ({
-        docId: doc.id,
-        ...doc.data()
-      }));
-      setMembers(membersList as any[]);
+      // Don't manually update state - let real-time listener handle it
       alert(`✅ Added ${demoUsers.length} demo users!`);
     } catch (error) {
       console.error('Error adding demo data:', error);
@@ -521,7 +547,7 @@ function App() {
           deleted: true,
         });
       }
-      setMembers([]);
+      // Don't update local state - let real-time listener handle it
       alert('✅ All demo data deleted!');
     } catch (error) {
       console.error('Error deleting data:', error);
@@ -537,11 +563,10 @@ function App() {
         // Update in Firestore
         const memberRef = doc(db, 'members', member.docId);
         await updateDoc(memberRef, { paymentStatus: status });
+        alert(`✅ Payment status updated to "${status}"`);
+      } else {
+        alert('❌ Member not found');
       }
-
-      // Update local state
-      setMembers(members.map(m => m.id === id ? { ...m, paymentStatus: status } : m));
-      alert(`✅ Payment status updated to "${status}"`);
     } catch (error) {
       console.error('Error updating payment:', error);
       alert('❌ Error updating payment status. Please try again.');
@@ -551,7 +576,7 @@ function App() {
   const getStats = () => ({
     totalMembers: members.length,
     pendingPayments: members.filter(m => m.paymentStatus === 'pending').length,
-    verifiedMembers: members.filter(m => m.verified).length,
+    verifiedMembers: members.filter(m => m.paymentStatus === 'verified').length,
     totalRevenue: members.reduce((sum, m) => sum + (m.amount || 0), 0),
   });
 
@@ -752,19 +777,39 @@ function App() {
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => {
-                              const membershipId = Math.floor(10000 + Math.random() * 90000);
-                              setMembers(members.map(m => m.id === member.id ? { ...m, membershipId } : m));
-                              const message = whatsappMessages.welcome(membershipId);
-                              sendWhatsAppMessage(member.phone, message);
+                            onClick={async () => {
+                              try {
+                                const membershipId = `MEM${Date.now()}${Math.floor(Math.random() * 1000)}`;
+                                const memberRef = doc(db, 'members', member.docId);
+                                await updateDoc(memberRef, { membershipId });
+                                alert(`✅ Membership ID generated: ${membershipId}`);
+                                const message = whatsappMessages.welcome(membershipId);
+                                sendWhatsAppMessage(member.phone, message);
+                              } catch (error) {
+                                console.error('Error accepting member:', error);
+                                alert('❌ Error accepting member. Please try again.');
+                              }
                             }}
                             className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
                           >
                             💬 Accept & WhatsApp
                           </button>
                           <button
-                            onClick={() => {
-                              setMembers(members.filter(m => m.id !== member.id));
+                            onClick={async () => {
+                              if (confirm(`❌ Reject ${member.fullName}? This cannot be undone!`)) {
+                                try {
+                                  const memberRef = doc(db, 'members', member.docId);
+                                  await updateDoc(memberRef, {
+                                    deleted: true,
+                                    deletedAt: new Date().toISOString(),
+                                    deletedBy: 'admin'
+                                  });
+                                  alert(`✅ Member ${member.fullName} rejected`);
+                                } catch (error) {
+                                  console.error('Error rejecting member:', error);
+                                  alert('❌ Error rejecting member. Please try again.');
+                                }
+                              }
                             }}
                             className="flex-1 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 text-sm"
                           >
@@ -806,20 +851,34 @@ function App() {
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => {
-                              setMembers(members.map(m => m.id === member.id ? { ...m, paymentStatus: 'verified' } : m));
-                              const message = whatsappMessages.thankYou();
-                              sendWhatsAppMessage(member.phone, message);
+                            onClick={async () => {
+                              try {
+                                const memberRef = doc(db, 'members', member.docId);
+                                await updateDoc(memberRef, { paymentStatus: 'verified' });
+                                // Don't update local state - let real-time listener handle it
+                                const message = whatsappMessages.thankYou();
+                                sendWhatsAppMessage(member.phone, message);
+                              } catch (error) {
+                                console.error('Error verifying payment:', error);
+                                alert('❌ Error verifying payment');
+                              }
                             }}
                             className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
                           >
                             ✅ Verify & WhatsApp
                           </button>
                           <button
-                            onClick={() => {
-                              setMembers(members.map(m => m.id === member.id ? { ...m, paymentStatus: 'rejected' } : m));
-                              const message = whatsappMessages.paymentRequest();
-                              sendWhatsAppMessage(member.phone, message);
+                            onClick={async () => {
+                              try {
+                                const memberRef = doc(db, 'members', member.docId);
+                                await updateDoc(memberRef, { paymentStatus: 'rejected' });
+                                // Don't update local state - let real-time listener handle it
+                                const message = whatsappMessages.paymentRequest();
+                                sendWhatsAppMessage(member.phone, message);
+                              } catch (error) {
+                                console.error('Error rejecting payment:', error);
+                                alert('❌ Error rejecting payment');
+                              }
                             }}
                             className="flex-1 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 text-sm"
                           >
@@ -935,8 +994,14 @@ function App() {
                             </div>
                             <div className="flex justify-between pb-2">
                               <span className="font-semibold">Status:</span>
-                              <span className={`px-2 py-1 rounded font-bold ${m.verified ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800'}`}>
-                                {m.verified ? '✓ Verified' : '⏳ Pending'}
+                              <span className={`px-2 py-1 rounded font-bold ${
+                                m.paymentStatus === 'verified' ? 'bg-green-200 text-green-800' :
+                                m.paymentStatus === 'pending' ? 'bg-yellow-200 text-yellow-800' :
+                                'bg-red-200 text-red-800'
+                              }`}>
+                                {m.paymentStatus === 'verified' ? '✓ Verified' :
+                                 m.paymentStatus === 'pending' ? '⏳ Pending' :
+                                 '❌ Rejected'}
                               </span>
                             </div>
                           </div>
@@ -973,41 +1038,79 @@ function App() {
 
     // Members Page
     if ((adminPage as string) === 'members') {
-      const filtered = members.filter(m =>
-        m.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.id.includes(searchQuery)
+      const q = searchQuery.trim().toLowerCase();
+      const filtered = q.length === 0 ? members : members.filter(m =>
+        (m.fullName?.toLowerCase().includes(q) || false) ||
+        (m.email?.toLowerCase().includes(q) || false) ||
+        (m.phone?.includes(q) || false) ||
+        (m.id?.toLowerCase().includes(q) || false)
       );
 
       return (
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
-            <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-              <button onClick={() => goBackAdmin()} className="text-2xl">←</button>
-              <div className="text-2xl font-bold text-blue-600">👥 Members List</div>
+            <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button onClick={() => goBackAdmin()} className="text-2xl">←</button>
+                <div className="text-2xl font-bold text-blue-600">👥 Members List</div>
+              </div>
+              <button
+                onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); navigate('/'); }}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold text-sm"
+              >
+                Logout
+              </button>
             </div>
           </header>
 
           <div className="max-w-6xl mx-auto p-8">
             <div className="mb-6">
-              <input
-                type="text"
-                placeholder="Search by name or ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by name or ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-3 text-gray-500 hover:text-gray-700 text-xl font-bold"
+                    title="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              {searchQuery && <p className="text-sm text-gray-600 mt-2">Found {filtered.length} member(s)</p>}
             </div>
 
             {selectedMembers.size > 0 && (
               <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg flex justify-between items-center">
                 <span className="font-bold text-blue-700">{selectedMembers.size} member(s) selected</span>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (confirm(`🗑️ Delete ${selectedMembers.size} members? This cannot be undone!`)) {
-                      const newMembers = members.filter(m => !selectedMembers.has(m.id));
-                      setMembers(newMembers);
-                      setSelectedMembers(new Set());
-                      alert(`✅ ${selectedMembers.size} member(s) deleted`);
+                      try {
+                        let deletedCount = 0;
+                        for (const memberId of selectedMembers) {
+                          const member = members.find(m => m.id === memberId);
+                          if (member?.docId) {
+                            await updateDoc(doc(db, 'members', member.docId), {
+                              deleted: true,
+                              deletedAt: new Date().toISOString(),
+                              deletedBy: 'admin'
+                            });
+                            deletedCount++;
+                          }
+                        }
+                        setSelectedMembers(new Set());
+                        alert(`✅ ${deletedCount} member(s) deleted successfully`);
+                      } catch (error) {
+                        console.error('Error bulk deleting members:', error);
+                        alert('❌ Error deleting members. Please try again.');
+                      }
                     }
                   }}
                   className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
@@ -1019,7 +1122,21 @@ function App() {
 
             <div className="bg-white rounded-lg shadow overflow-hidden">
               {filtered.length === 0 ? (
-                <p className="p-6 text-gray-500">No members found</p>
+                <div className="p-8 text-center">
+                  {members.length === 0 ? (
+                    <div className="text-gray-500">
+                      <p className="text-2xl mb-2">📭</p>
+                      <p className="font-semibold">No members yet</p>
+                      <p className="text-sm text-gray-400 mt-1">Members who complete admission will appear here</p>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500">
+                      <p className="text-2xl mb-2">🔍</p>
+                      <p className="font-semibold">No matching members</p>
+                      <p className="text-sm text-gray-400 mt-1">Try searching with a different name, email, or phone</p>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <table className="w-full">
                   <thead className="bg-gray-100">
@@ -1104,16 +1221,21 @@ function App() {
                             ✏️ Edit
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm(`Delete ${member.fullName}? This cannot be undone!`)) {
-                                // Soft delete in Firestore
-                                updateDoc(doc(db, 'members', member.docId), {
-                                  deleted: true,
-                                  deletedAt: new Date().toISOString(),
-                                  deletedBy: 'admin'
-                                });
-                                setMembers(members.filter(m => m.id !== member.id));
-                                alert(`✅ Member ${member.fullName} deleted`);
+                            onClick={async () => {
+                              if (confirm(`🗑️ Delete ${member.fullName}? This cannot be undone!`)) {
+                                try {
+                                  // Soft delete in Firestore
+                                  await updateDoc(doc(db, 'members', member.docId), {
+                                    deleted: true,
+                                    deletedAt: new Date().toISOString(),
+                                    deletedBy: 'admin'
+                                  });
+                                  // Don't update local state - let real-time listener handle it
+                                  alert(`✅ Member ${member.fullName} deleted successfully`);
+                                } catch (error) {
+                                  console.error('Error deleting member:', error);
+                                  alert('❌ Error deleting member. Please try again.');
+                                }
                               }
                             }}
                             className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-semibold"
@@ -1142,8 +1264,8 @@ function App() {
                   {/* Header */}
                   <div className="flex items-start justify-between mb-6 pb-4 border-b-2">
                     <div>
-                      <h2 className="text-3xl font-bold text-gray-900">{selectedMemberDetail.fullName}</h2>
-                      <p className="text-sm text-gray-500 mt-1">ID: {selectedMemberDetail.id}</p>
+                      <h2 className="text-3xl font-bold text-gray-900">{selectedMemberDetail.fullName || 'Member'}</h2>
+                      <p className="text-sm text-gray-500 mt-1">ID: {selectedMemberDetail.id || 'N/A'}</p>
                     </div>
                     <button
                       onClick={() => setSelectedMemberDetail(null)}
@@ -1496,7 +1618,10 @@ function App() {
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">Phone</label>
-                          <input type="tel" value={editFormData.phone || ''} onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="tel" value={editFormData.phone || ''} onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                            setEditFormData({...editFormData, phone: val});
+                          }} maxLength="10" className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
                     </div>
@@ -1511,11 +1636,17 @@ function App() {
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">City</label>
-                          <input type="text" value={editFormData.tempCity || ''} onChange={(e) => setEditFormData({...editFormData, tempCity: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.tempCity || ''} onChange={(e) => {
+                            const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                            setEditFormData({...editFormData, tempCity: val});
+                          }} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">State</label>
-                          <input type="text" value={editFormData.tempState || ''} onChange={(e) => setEditFormData({...editFormData, tempState: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.tempState || ''} onChange={(e) => {
+                            const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                            setEditFormData({...editFormData, tempState: val});
+                          }} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Pin Code</label>
@@ -1534,11 +1665,17 @@ function App() {
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">City</label>
-                          <input type="text" value={editFormData.permCity || ''} onChange={(e) => setEditFormData({...editFormData, permCity: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.permCity || ''} onChange={(e) => {
+                            const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                            setEditFormData({...editFormData, permCity: val});
+                          }} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div>
                           <label className="block text-sm font-bold text-gray-700 mb-1">State</label>
-                          <input type="text" value={editFormData.permState || ''} onChange={(e) => setEditFormData({...editFormData, permState: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="text" value={editFormData.permState || ''} onChange={(e) => {
+                            const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                            setEditFormData({...editFormData, permState: val});
+                          }} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Pin Code</label>
@@ -1579,7 +1716,10 @@ function App() {
                         </div>
                         <div className="col-span-2">
                           <label className="block text-sm font-bold text-gray-700 mb-1">Contact Phone</label>
-                          <input type="tel" value={editFormData.emergencyContactPhone || ''} onChange={(e) => setEditFormData({...editFormData, emergencyContactPhone: e.target.value})} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
+                          <input type="tel" value={editFormData.emergencyContactPhone || ''} onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                            setEditFormData({...editFormData, emergencyContactPhone: val});
+                          }} maxLength="10" className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm" />
                         </div>
                       </div>
                     </div>
@@ -1665,12 +1805,82 @@ function App() {
                     </button>
                     <button
                       onClick={async () => {
+                        // Validation
+                        if (!editFormData.fullName.trim()) {
+                          alert('❌ Full name is required');
+                          return;
+                        }
+                        const emailRegex = /^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+                        if (!editFormData.email.trim() || !emailRegex.test(editFormData.email.trim())) {
+                          alert('❌ Valid email is required');
+                          return;
+                        }
+                        // Check if email is already taken (by another member)
+                        if (editFormData.email.toLowerCase() !== editingMember.email.toLowerCase()) {
+                          const emailExists = members.some(m => m.id !== editingMember.id && m.email.toLowerCase() === editFormData.email.toLowerCase());
+                          if (emailExists) {
+                            alert('❌ This email is already registered');
+                            return;
+                          }
+                        }
+                        const phoneRegex = /^[0-9]{10}$/;
+                        if (!phoneRegex.test(editFormData.phone)) {
+                          alert('❌ Phone must be 10 digits');
+                          return;
+                        }
+                        // Check if phone is already taken (by another member)
+                        if (editFormData.phone !== editingMember.phone) {
+                          const phoneExists = members.some(m => m.id !== editingMember.id && m.phone === editFormData.phone);
+                          if (phoneExists) {
+                            alert('❌ This phone number is already registered');
+                            return;
+                          }
+                        }
+                        if (!editFormData.emergencyContactName.trim()) {
+                          alert('❌ Emergency contact name is required');
+                          return;
+                        }
+                        if (!phoneRegex.test(editFormData.emergencyContactPhone)) {
+                          alert('❌ Emergency contact phone must be 10 digits');
+                          return;
+                        }
+                        if (!editFormData.tempStreet.trim() || !editFormData.tempCity.trim() || !editFormData.tempState.trim() || !editFormData.tempPincode.trim()) {
+                          alert('❌ Temporary address fields are required');
+                          return;
+                        }
+                        if (!editFormData.plan) {
+                          alert('❌ Plan is required');
+                          return;
+                        }
+                        if (!editFormData.slot) {
+                          alert('❌ Time slot is required');
+                          return;
+                        }
+
+                        if (!confirm(`✅ Save changes for ${editFormData.fullName}?`)) {
+                          return;
+                        }
+
                         setIsSavingMember(true);
                         try {
+                          // Sanitize data before saving
+                          const sanitizedData = {
+                            ...editFormData,
+                            fullName: sanitizeInput(editFormData.fullName),
+                            email: sanitizeInput(editFormData.email.toLowerCase()),
+                            schoolCollege: sanitizeInput(editFormData.schoolCollege),
+                            emergencyContactName: sanitizeInput(editFormData.emergencyContactName),
+                            tempStreet: sanitizeInput(editFormData.tempStreet),
+                            tempCity: sanitizeInput(editFormData.tempCity),
+                            tempState: sanitizeInput(editFormData.tempState),
+                            permStreet: sanitizeInput(editFormData.permStreet),
+                            permCity: sanitizeInput(editFormData.permCity),
+                            permState: sanitizeInput(editFormData.permState),
+                          };
                           // Update Firestore if docId exists
                           if (editingMember?.docId) {
                             const memberRef = doc(db, 'members', editingMember.docId);
-                            await updateDoc(memberRef, editFormData);
+                            await updateDoc(memberRef, sanitizedData);
                             console.log('✅ Firestore updated:', editFormData.fullName, 'Status:', editFormData.paymentStatus);
 
                             // Don't update local state - let real-time listener handle it
@@ -1707,9 +1917,17 @@ function App() {
       return (
         <div className="min-h-screen bg-gray-50">
           <header className="sticky top-0 z-40 bg-white shadow">
-            <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-              <button onClick={() => goBackAdmin()} className="text-2xl">←</button>
-              <div className="text-2xl font-bold text-blue-600">💳 Payment Verification</div>
+            <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button onClick={() => goBackAdmin()} className="text-2xl">←</button>
+                <div className="text-2xl font-bold text-blue-600">💳 Payment Verification</div>
+              </div>
+              <button
+                onClick={() => { setIsAdmin(false); setAdminPage('dashboard'); navigate('/'); }}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold text-sm"
+              >
+                Logout
+              </button>
             </div>
           </header>
 
@@ -1758,13 +1976,22 @@ function App() {
                           👁️ Review Proof
                         </button>
                         <button
-                          onClick={() => { updateMemberPayment(member.id, 'verified'); setPaymentReviewNotes(''); }}
+                          onClick={() => {
+                            if (confirm(`✅ Verify payment of ₹${member.amount} for ${member.fullName}?`)) {
+                              updateMemberPayment(member.id, 'verified');
+                              setPaymentReviewNotes('');
+                            }
+                          }}
                           className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700"
                         >
                           ✓ Verify
                         </button>
                         <button
-                          onClick={() => updateMemberPayment(member.id, 'rejected')}
+                          onClick={() => {
+                            if (confirm(`❌ Reject payment of ₹${member.amount} for ${member.fullName}?`)) {
+                              updateMemberPayment(member.id, 'rejected');
+                            }
+                          }}
                           className="flex-1 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
                         >
                           ✗ Reject
@@ -1824,13 +2051,18 @@ function App() {
                 <div className="mb-6">
                   <h3 className="text-lg font-bold mb-3">Payment Proof</h3>
                   <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    {selectedPaymentForReview.paymentProof ? (
-                      <img src={selectedPaymentForReview.paymentProof} alt="Payment proof" className="max-h-60 mx-auto rounded" />
-                    ) : (
+                    {selectedPaymentForReview.upiScreenshot && selectedPaymentForReview.paymentMethod === 'upi' ? (
+                      <img src={selectedPaymentForReview.upiScreenshot} alt="Payment proof" className="max-h-60 mx-auto rounded" />
+                    ) : selectedPaymentForReview.paymentMethod === 'upi' ? (
                       <div className="text-gray-600">
                         <p className="text-4xl mb-2">📸</p>
-                        <p>Payment screenshot/screenshot not uploaded yet</p>
+                        <p>Payment screenshot not uploaded yet</p>
                         <p className="text-sm mt-2">Member should upload during signup</p>
+                      </div>
+                    ) : (
+                      <div className="text-gray-600">
+                        <p className="text-4xl mb-2">💵</p>
+                        <p>Cash payment - No screenshot required</p>
                       </div>
                     )}
                   </div>
@@ -1854,10 +2086,12 @@ function App() {
                   <textarea
                     placeholder="Add any notes about this payment..."
                     value={paymentReviewNotes}
-                    onChange={(e) => setPaymentReviewNotes(e.target.value)}
+                    onChange={(e) => setPaymentReviewNotes(e.target.value.slice(0, 500))}
+                    maxLength={500}
                     className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
                     rows={3}
                   />
+                  <p className="text-xs text-gray-500 mt-1">{paymentReviewNotes.length}/500</p>
                 </div>
 
                 {/* Action Buttons */}
@@ -1872,20 +2106,49 @@ function App() {
                     Close
                   </button>
                   <button
-                    onClick={() => {
-                      updateMemberPayment(selectedPaymentForReview.id, 'rejected');
-                      setSelectedPaymentForReview(null);
-                      setPaymentReviewNotes('');
+                    onClick={async () => {
+                      if (confirm(`❌ Reject payment of ₹${selectedPaymentForReview.amount} for ${selectedPaymentForReview.fullName}?`)) {
+                        try {
+                          const member = members.find(m => m.id === selectedPaymentForReview.id);
+                          if (member?.docId) {
+                            await updateDoc(doc(db, 'members', member.docId), {
+                              paymentStatus: 'rejected',
+                              paymentUTR: selectedPaymentForReview.paymentUTR || '',
+                              adminNotes: paymentReviewNotes || '',
+                              rejectionReason: paymentReviewNotes
+                            });
+                            setSelectedPaymentForReview(null);
+                            setPaymentReviewNotes('');
+                          }
+                        } catch (error) {
+                          console.error('Error rejecting payment:', error);
+                          alert('❌ Error rejecting payment');
+                        }
+                      }
                     }}
                     className="flex-1 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
                   >
                     ✗ Reject Payment
                   </button>
                   <button
-                    onClick={() => {
-                      updateMemberPayment(selectedPaymentForReview.id, 'verified');
-                      setSelectedPaymentForReview(null);
-                      setPaymentReviewNotes('');
+                    onClick={async () => {
+                      if (confirm(`✅ Verify payment of ₹${selectedPaymentForReview.amount} for ${selectedPaymentForReview.fullName}?`)) {
+                        try {
+                          const member = members.find(m => m.id === selectedPaymentForReview.id);
+                          if (member?.docId) {
+                            await updateDoc(doc(db, 'members', member.docId), {
+                              paymentStatus: 'verified',
+                              paymentUTR: selectedPaymentForReview.paymentUTR || '',
+                              adminNotes: paymentReviewNotes || ''
+                            });
+                            setSelectedPaymentForReview(null);
+                            setPaymentReviewNotes('');
+                          }
+                        } catch (error) {
+                          console.error('Error verifying payment:', error);
+                          alert('❌ Error verifying payment');
+                        }
+                      }
                     }}
                     className="flex-1 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700"
                   >
@@ -1918,7 +2181,7 @@ function App() {
           <div className="max-w-7xl mx-auto p-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {slots.map((slot) => {
-                const slotMembers = members.filter(m => m.slot === slot.name);
+                const slotMembers = members.filter(m => m.slot === slot.name && !m.deleted);
                 const availableSeats = slot.capacity - slotMembers.length;
 
                 return (
@@ -1946,10 +2209,10 @@ function App() {
                     </div>
 
                     <div>
-                      <h4 className="font-bold text-gray-900 mb-4">Seat Grid (23 total):</h4>
+                      <h4 className="font-bold text-gray-900 mb-4">Seat Grid ({slot.capacity} total):</h4>
                       <div className="grid grid-cols-6 gap-2">
                         {Array.from({ length: slot.capacity }).map((_, seatNum) => {
-                          const member = slotMembers[seatNum];
+                          const member = slotMembers[seatNum] || null;
                           return (
                             <button
                               key={seatNum}
@@ -1959,10 +2222,10 @@ function App() {
                                   ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white border-2 border-blue-700 cursor-pointer hover:from-blue-600 hover:to-blue-700'
                                   : 'bg-gradient-to-br from-green-400 to-emerald-500 text-white border-2 border-green-600'
                               }`}
-                              title={member ? `${member.fullName}` : 'Empty'}
+                              title={member ? `${member.fullName}` : 'Empty Seat'}
                             >
                               <div className="text-xs">#{seatNum + 1}</div>
-                              {member && <div className="text-xs truncate">{member.fullName.split(' ')[0]}</div>}
+                              {member && <div className="text-xs truncate">{member.fullName?.split(' ')[0] || 'Member'}</div>}
                             </button>
                           );
                         })}
@@ -1994,8 +2257,8 @@ function App() {
 
           {/* Member Detail Modal */}
           {selectedMemberDetail && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <div className="bg-white rounded-lg p-8 max-w-md w-full">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+              <div className="bg-white rounded-lg p-8 max-w-md w-full my-auto">
                 <div className="flex items-start justify-between mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">{selectedMemberDetail.fullName}</h2>
                   <button
@@ -2044,9 +2307,13 @@ function App() {
                     <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${
                       selectedMemberDetail.paymentStatus === 'verified'
                         ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
+                        : selectedMemberDetail.paymentStatus === 'pending'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
                     }`}>
-                      {selectedMemberDetail.paymentStatus === 'verified' ? '✅ Verified' : '⏳ Pending'}
+                      {selectedMemberDetail.paymentStatus === 'verified' ? '✅ Verified' :
+                       selectedMemberDetail.paymentStatus === 'pending' ? '⏳ Pending' :
+                       '❌ Rejected'}
                     </span>
                   </div>
 
@@ -2108,12 +2375,14 @@ function App() {
 
                 <button
                   onClick={() => {
-                    members.forEach(member => {
-                      if (member.phone) {
-                        const message = whatsappMessages.renewal(member.membershipId?.toString() || 'soon');
-                        sendWhatsAppMessage(member.phone, message);
-                      }
-                    });
+                    members
+                      .filter(m => !m.deleted && m.paymentStatus === 'verified')
+                      .forEach(member => {
+                        if (member.phone) {
+                          const message = whatsappMessages.renewal(member.membershipId?.toString() || 'soon');
+                          sendWhatsAppMessage(member.phone, message);
+                        }
+                      });
                   }}
                   className="w-full py-4 bg-gradient-to-r from-green-600 to-green-700 text-white font-bold rounded-lg hover:shadow-lg text-lg"
                 >
@@ -2200,19 +2469,21 @@ function App() {
                     </div>
 
                     <div className="mb-6">
-                      <label className="block text-sm font-bold text-gray-700 mb-2">New Password</label>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">New Password (min 6 characters)</label>
                       <input
                         type="password"
                         value={editUserPassword}
-                        onChange={(e) => setEditUserPassword(e.target.value)}
+                        onChange={(e) => setEditUserPassword(e.target.value.slice(0, 50))}
                         placeholder="Enter new password"
+                        maxLength={50}
                         className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-600 outline-none"
                       />
+                      {editUserPassword && editUserPassword.length < 6 && <p className="text-yellow-600 text-sm mt-1">⚠️ Password must be at least 6 characters</p>}
                     </div>
 
                     <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6">
                       <p className="text-sm text-yellow-700">
-                        ⚠️ <strong>Note:</strong> Password will be changed immediately. Current password: <code className="bg-yellow-100 px-2 py-1">{editingUser.password}</code>
+                        ⚠️ <strong>Note:</strong> Password will be changed immediately. Never share passwords.
                       </p>
                     </div>
 
@@ -2227,16 +2498,26 @@ function App() {
                         Cancel
                       </button>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (!editUserPassword.trim()) {
                             alert('Please enter a new password');
                             return;
                           }
-                          // Update user password
-                          setUsers(users.map(u => u.id === editingUser.id ? {...u, password: editUserPassword} : u));
-                          alert(`✅ Password updated for ${editingUser.name}`);
-                          setEditingUser(null);
-                          setEditUserPassword('');
+                          if (editUserPassword.length < 6) {
+                            alert('Password must be at least 6 characters');
+                            return;
+                          }
+                          try {
+                            const userRef = doc(db, 'users', editingUser.id);
+                            await updateDoc(userRef, { password: editUserPassword });
+                            setUsers(users.map(u => u.id === editingUser.id ? {...u, password: editUserPassword} : u));
+                            alert(`✅ Password updated for ${editingUser.name}`);
+                            setEditingUser(null);
+                            setEditUserPassword('');
+                          } catch (error) {
+                            console.error('Error updating password:', error);
+                            alert('❌ Error updating password');
+                          }
                         }}
                         className="flex-1 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700"
                       >
@@ -2665,10 +2946,10 @@ function App() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
               <h1 className="text-3xl font-bold">Admission Form</h1>
-              <span className="text-blue-600 font-bold">Step 1/5</span>
+              <span className="text-blue-600 font-bold">Step 1/7</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '20%' }}></div>
+              <div className="bg-blue-600 h-2 rounded-full" style={{ width: '14%' }}></div>
             </div>
           </div>
 
@@ -2683,8 +2964,9 @@ function App() {
                   value={formData.fullName}
                   onChange={handleInputChange}
                   placeholder="Enter your full name"
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                  className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none ${formErrors.fullName ? 'border-red-600 focus:border-red-600 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
                 />
+                {formErrors.fullName && <p className="text-red-600 text-sm mt-1">⚠️ {formErrors.fullName}</p>}
               </div>
               <div>
                 <label className="block font-semibold mb-2">Email <span className="text-red-600">*</span></label>
@@ -2694,8 +2976,9 @@ function App() {
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="example@email.com"
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                  className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none ${formErrors.email ? 'border-red-600 focus:border-red-600 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
                 />
+                {formErrors.email && <p className="text-red-600 text-sm mt-1">⚠️ {formErrors.email}</p>}
               </div>
               <div>
                 <label className="block font-semibold mb-2">WhatsApp Number <span className="text-red-600">*</span></label>
@@ -2703,10 +2986,16 @@ function App() {
                   type="tel"
                   name="phone"
                   value={formData.phone}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                    setFormData({...formData, phone: val});
+                  }}
                   placeholder="+91 XXXXXXXXXX"
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                  maxLength="10"
+                  className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none ${formErrors.phone ? 'border-red-600 focus:border-red-600 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
                 />
+                {formData.phone && formData.phone.length < 10 && <p className="text-yellow-600 text-sm mt-1">⏳ {formData.phone.length}/10 digits entered</p>}
+                {formErrors.phone && <p className="text-red-600 text-sm mt-1">⚠️ {formErrors.phone}</p>}
               </div>
               <div>
                 <label className="block font-semibold mb-2">Date of Birth <span className="text-red-600">*</span></label>
@@ -2716,8 +3005,9 @@ function App() {
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
                   max={new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                  className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none ${formErrors.dateOfBirth ? 'border-red-600 focus:border-red-600 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
                 />
+                {formErrors.dateOfBirth && <p className="text-red-600 text-sm mt-1">⚠️ {formErrors.dateOfBirth}</p>}
               </div>
               <div>
                 <label className="block font-semibold mb-2">Gender <span className="text-red-500">*</span></label>
@@ -2725,7 +3015,7 @@ function App() {
                   name="gender"
                   value={formData.gender}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
+                  className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none ${formErrors.gender ? 'border-red-600 focus:border-red-600 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
                 >
                   <option value="">Select Gender</option>
                   <option value="Male">Male</option>
@@ -2733,6 +3023,7 @@ function App() {
                   <option value="Other">Other</option>
                   <option value="Prefer not to say">Prefer not to say</option>
                 </select>
+                {formErrors.gender && <p className="text-red-600 text-sm mt-1">⚠️ {formErrors.gender}</p>}
               </div>
               <div>
                 <label className="block font-semibold mb-2">Current Class/Year</label>
@@ -2798,37 +3089,47 @@ function App() {
               </button>
               <button
                 onClick={() => {
+                  const errors: Record<string, string> = {};
+
                   if (!formData.fullName.trim()) {
-                    alert('Please enter your full name');
-                    return;
+                    errors.fullName = 'Full name is required';
                   }
                   if (!formData.email.trim()) {
-                    alert('Please enter your email');
-                    return;
-                  }
-                  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                  if (!emailRegex.test(formData.email.trim())) {
-                    alert('Please enter a valid email address');
-                    return;
+                    errors.email = 'Email is required';
+                  } else {
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(formData.email.trim())) {
+                      errors.email = 'Invalid email format';
+                    }
                   }
                   if (!formData.phone.trim()) {
-                    alert('Please enter your WhatsApp number');
-                    return;
-                  }
-                  const phoneRegex = /^[0-9]{10}$/;
-                  const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
-                  if (!phoneRegex.test(cleanPhone)) {
-                    alert('Please enter a valid 10-digit phone number');
-                    return;
+                    errors.phone = 'WhatsApp number is required';
+                  } else {
+                    const phoneRegex = /^[0-9]{10}$/;
+                    const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
+                    if (!phoneRegex.test(cleanPhone)) {
+                      errors.phone = 'Must be 10 digits (no spaces/dashes)';
+                    }
                   }
                   if (!formData.dateOfBirth) {
-                    alert('Please select your date of birth');
-                    return;
+                    errors.dateOfBirth = 'Date of birth is required';
+                  } else {
+                    const age = new Date().getFullYear() - new Date(formData.dateOfBirth).getFullYear();
+                    if (age < 13) {
+                      errors.dateOfBirth = 'Must be at least 13 years old';
+                    }
                   }
                   if (!formData.gender) {
-                    alert('Please select your gender');
+                    errors.gender = 'Gender is required';
+                  }
+
+                  if (Object.keys(errors).length > 0) {
+                    setFormErrors(errors);
+                    alert(`❌ Please fix the highlighted fields (${Object.keys(errors).length} errors)`);
                     return;
                   }
+
+                  setFormErrors({});
                   navigate('/admission/step-2');
                 }}
                 className="flex-1 py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
@@ -2871,11 +3172,17 @@ function App() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-semibold mb-1 text-gray-700">City <span className="text-red-600">*</span></label>
-                    <input type="text" value={formData.tempCity || ''} onChange={(e) => setFormData({...formData, tempCity: e.target.value})} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
+                    <input type="text" value={formData.tempCity || ''} onChange={(e) => {
+                      const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                      setFormData({...formData, tempCity: val});
+                    }} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-1 text-gray-700">State <span className="text-red-600">*</span></label>
-                    <input type="text" value={formData.tempState || ''} onChange={(e) => setFormData({...formData, tempState: e.target.value})} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
+                    <input type="text" value={formData.tempState || ''} onChange={(e) => {
+                      const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                      setFormData({...formData, tempState: val});
+                    }} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
                   </div>
                 </div>
                 <div>
@@ -2924,11 +3231,17 @@ function App() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-semibold mb-1 text-gray-700">City <span className="text-red-600">*</span></label>
-                      <input type="text" value={formData.permCity || ''} onChange={(e) => setFormData({...formData, permCity: e.target.value})} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
+                      <input type="text" value={formData.permCity || ''} onChange={(e) => {
+                        const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                        setFormData({...formData, permCity: val});
+                      }} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-1 text-gray-700">State <span className="text-red-600">*</span></label>
-                      <input type="text" value={formData.permState || ''} onChange={(e) => setFormData({...formData, permState: e.target.value})} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
+                      <input type="text" value={formData.permState || ''} onChange={(e) => {
+                        const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                        setFormData({...formData, permState: val});
+                      }} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
                     </div>
                   </div>
                   <div>
@@ -2968,8 +3281,16 @@ function App() {
                     alert('Please fill all temporary address fields');
                     return;
                   }
+                  if (formData.tempPincode.length !== 6) {
+                    alert('Temporary pincode must be exactly 6 digits');
+                    return;
+                  }
                   if (!isSamePermanentAddress && (!formData.permStreet.trim() || !formData.permCity.trim() || !formData.permState.trim() || !formData.permPincode.trim())) {
                     alert('Please fill all permanent address fields');
+                    return;
+                  }
+                  if (!isSamePermanentAddress && formData.permPincode.length !== 6) {
+                    alert('Permanent pincode must be exactly 6 digits');
                     return;
                   }
                   navigate('/admission/step-3');
@@ -3020,13 +3341,17 @@ function App() {
                   type="tel"
                   name="emergencyContactPhone"
                   value={formData.emergencyContactPhone}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
+                    setFormData({...formData, emergencyContactPhone: val});
+                  }}
                   placeholder="+91 XXXXXXXXXX"
+                  maxLength="10"
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-2">How did you hear about us?</label>
+                <label className="block font-semibold mb-2">How did you hear about us? <span className="text-red-600">*</span></label>
                 <select
                   name="referralSource"
                   value={formData.referralSource}
@@ -3197,41 +3522,54 @@ function App() {
               <div className="space-y-2">
                 {selectedDayType === 'Half-day' ? (
                   <>
-                    <button
-                      onClick={() => setSelectedSlot('9am-3pm')}
-                      className={`w-full p-3 rounded-lg border-2 text-left transition ${
-                        selectedSlot === '9am-3pm'
-                          ? 'border-blue-600 bg-blue-50'
-                          : 'border-gray-300 hover:border-blue-400'
-                      }`}
-                    >
-                      <div className="font-bold">9 AM - 3 PM</div>
-                      <div className="text-sm text-gray-600">Morning slot • 25/69 seats available</div>
-                    </button>
-                    <button
-                      onClick={() => setSelectedSlot('3pm-9pm')}
-                      className={`w-full p-3 rounded-lg border-2 text-left transition ${
-                        selectedSlot === '3pm-9pm'
-                          ? 'border-blue-600 bg-blue-50'
-                          : 'border-gray-300 hover:border-blue-400'
-                      }`}
-                    >
-                      <div className="font-bold">3 PM - 9 PM</div>
-                      <div className="text-sm text-gray-600">Evening slot • 20/69 seats available</div>
-                    </button>
+                    {(() => {
+                      const morning = members.filter(m => m.slot === '9am-3pm' && !m.deleted).length;
+                      const evening = members.filter(m => m.slot === '3pm-9pm' && !m.deleted).length;
+                      return (
+                        <>
+                          <button
+                            onClick={() => setSelectedSlot('9am-3pm')}
+                            className={`w-full p-3 rounded-lg border-2 text-left transition ${
+                              selectedSlot === '9am-3pm'
+                                ? 'border-blue-600 bg-blue-50'
+                                : 'border-gray-300 hover:border-blue-400'
+                            }`}
+                          >
+                            <div className="font-bold">9 AM - 3 PM</div>
+                            <div className="text-sm text-gray-600">Morning slot • {SEATS_PER_SLOT - morning}/{SEATS_PER_SLOT} seats available</div>
+                          </button>
+                          <button
+                            onClick={() => setSelectedSlot('3pm-9pm')}
+                            className={`w-full p-3 rounded-lg border-2 text-left transition ${
+                              selectedSlot === '3pm-9pm'
+                                ? 'border-blue-600 bg-blue-50'
+                                : 'border-gray-300 hover:border-blue-400'
+                            }`}
+                          >
+                            <div className="font-bold">3 PM - 9 PM</div>
+                            <div className="text-sm text-gray-600">Evening slot • {SEATS_PER_SLOT - evening}/{SEATS_PER_SLOT} seats available</div>
+                          </button>
+                        </>
+                      );
+                    })()}
                   </>
                 ) : (
-                  <button
-                    onClick={() => setSelectedSlot('9am-9pm')}
-                    className={`w-full p-3 rounded-lg border-2 text-left transition ${
-                      selectedSlot === '9am-9pm'
-                        ? 'border-blue-600 bg-blue-50'
-                        : 'border-gray-300 hover:border-blue-400'
-                    }`}
-                  >
-                    <div className="font-bold">9 AM - 9 PM (Full Day)</div>
-                    <div className="text-sm text-gray-600">Full day access • 15/69 seats available</div>
-                  </button>
+                  (() => {
+                    const fullday = members.filter(m => m.slot === '9am-9pm' && !m.deleted).length;
+                    return (
+                      <button
+                        onClick={() => setSelectedSlot('9am-9pm')}
+                        className={`w-full p-3 rounded-lg border-2 text-left transition ${
+                          selectedSlot === '9am-9pm'
+                            ? 'border-blue-600 bg-blue-50'
+                            : 'border-gray-300 hover:border-blue-400'
+                        }`}
+                      >
+                        <div className="font-bold">9 AM - 9 PM (Full Day)</div>
+                        <div className="text-sm text-gray-600">Full day access • {SEATS_PER_SLOT - fullday}/{SEATS_PER_SLOT} seats available</div>
+                      </button>
+                    );
+                  })()}
                 )}
               </div>
             </div>
@@ -3370,6 +3708,10 @@ function App() {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          alert('❌ File size must be less than 5MB');
+                          return;
+                        }
                         const reader = new FileReader();
                         reader.onloadend = () => {
                           setUpiScreenshot(reader.result as string);
@@ -3388,7 +3730,8 @@ function App() {
                     type="text"
                     placeholder="Enter your UPI transaction ID"
                     value={utrNumber}
-                    onChange={(e) => setUtrNumber(e.target.value.toUpperCase())}
+                    onChange={(e) => setUtrNumber(e.target.value.toUpperCase().slice(0, 30))}
+                    maxLength={30}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
                   />
                 </div>
@@ -3411,26 +3754,40 @@ function App() {
               Back
             </button>
             <button
+              disabled={isSubmitting}
               onClick={async () => {
                 try {
+                  setIsSubmitting(true);
+
+                  // Validate amount
+                  const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
+                  if (amount <= 0) {
+                    alert('❌ Invalid plan or day type selected');
+                    setIsSubmitting(false);
+                    return;
+                  }
+
                   const agreeCheckbox = document.getElementById('agree') as HTMLInputElement;
                   if (!agreeCheckbox || !agreeCheckbox.checked) {
                     alert('Please agree to Terms & Conditions');
+                    setIsSubmitting(false);
                     return;
                   }
 
                   if (paymentMethod === 'upi') {
                     if (!upiScreenshot) {
                       alert('Please upload UPI payment screenshot');
+                      setIsSubmitting(false);
                       return;
                     }
                     if (!utrNumber.trim()) {
                       alert('Please enter UTR/Transaction ID');
+                      setIsSubmitting(false);
                       return;
                     }
                   }
 
-                  const bookingId = `ABD${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+                  const bookingId = `ABD${Date.now()}${Math.floor(Math.random() * 1000000)}`;
                   const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
 
                   console.log('📝 Starting submission process...');
@@ -3448,27 +3805,27 @@ function App() {
                   console.log('💾 Saving member to database...');
                   await addMember({
                     id: bookingId,
-                    fullName: formData.fullName.trim(),
-                    email: formData.email.trim().toLowerCase(),
+                    fullName: sanitizeInput(formData.fullName),
+                    email: sanitizeInput(formData.email.toLowerCase()),
                     phone: formData.phone.replace(/[^0-9]/g, ''),
                     dateOfBirth: formData.dateOfBirth,
-                    gender: formData.gender,
-                    currentClass: formData.currentClass.trim(),
-                    targetExam: formData.targetExam.trim(),
-                    schoolCollege: formData.schoolCollege.trim(),
-                    emergencyContactName: formData.emergencyContactName.trim(),
+                    gender: sanitizeInput(formData.gender),
+                    currentClass: sanitizeInput(formData.currentClass),
+                    targetExam: sanitizeInput(formData.targetExam),
+                    schoolCollege: sanitizeInput(formData.schoolCollege),
+                    emergencyContactName: sanitizeInput(formData.emergencyContactName),
                     emergencyContactPhone: formData.emergencyContactPhone.replace(/[^0-9]/g, ''),
-                    referralSource: formData.referralSource.trim(),
+                    referralSource: sanitizeInput(formData.referralSource),
                     // Temporary Address - Structured
-                    tempStreet: formData.tempStreet.trim(),
-                    tempCity: formData.tempCity.trim(),
-                    tempState: formData.tempState.trim(),
+                    tempStreet: sanitizeInput(formData.tempStreet),
+                    tempCity: sanitizeInput(formData.tempCity),
+                    tempState: sanitizeInput(formData.tempState),
                     tempPincode: formData.tempPincode.trim(),
-                    // Permanent Address - Structured
-                    permStreet: formData.permStreet.trim(),
-                    permCity: formData.permCity.trim(),
-                    permState: formData.permState.trim(),
-                    permPincode: formData.permPincode.trim(),
+                    // Permanent Address - Structured (use temp address if same)
+                    permStreet: sanitizeInput(isSamePermanentAddress ? formData.tempStreet : formData.permStreet),
+                    permCity: sanitizeInput(isSamePermanentAddress ? formData.tempCity : formData.permCity),
+                    permState: sanitizeInput(isSamePermanentAddress ? formData.tempState : formData.permState),
+                    permPincode: (isSamePermanentAddress ? formData.tempPincode : formData.permPincode).trim(),
                     plan: `${selectedPlan} ${selectedDayType}`,
                     slot: selectedSlot,
                     startDate: selectedDate,
@@ -3478,13 +3835,13 @@ function App() {
                     utrNumber: paymentMethod === 'upi' ? utrNumber : null,
                   });
                   console.log('✅ Member saved. Success modal should show now.');
-                  // Step 3: Navigate to thank you page
+                  // Step 3: Navigate to thank you page (DON'T reset form - step 7 needs the data)
                   console.log('🎉 Navigating to thank you page');
-                  resetForm();
                   navigate('/admission/step-7');
                 } catch (error: any) {
                   console.error('❌ Submission error:', error);
                   alert('❌ Error during submission:\n' + (error?.message || String(error)));
+                  setIsSubmitting(false);
                 }
               }}
               disabled={isSubmitting}
