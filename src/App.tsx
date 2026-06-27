@@ -3389,7 +3389,7 @@ function App() {
                   value={formData.phone}
                   onChange={(e) => {
                     const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
-                    setFormData({...formData, phone: val});
+                    setFormData(prev => ({...prev, phone: val}));
                   }}
                   placeholder="+91 XXXXXXXXXX"
                   maxLength="10"
@@ -3570,21 +3570,21 @@ function App() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-semibold mb-1 text-gray-700">Street Address / House No. <span className="text-red-600">*</span></label>
-                  <input type="text" value={formData.tempStreet || ''} onChange={(e) => setFormData({...formData, tempStreet: e.target.value})} placeholder="e.g., 123 Main Street, Apt 456" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
+                  <input type="text" value={formData.tempStreet || ''} onChange={(e) => setFormData(prev => ({...prev, tempStreet: e.target.value}))} placeholder="e.g., 123 Main Street, Apt 456" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-semibold mb-1 text-gray-700">City <span className="text-red-600">*</span></label>
                     <input type="text" value={formData.tempCity || ''} onChange={(e) => {
                       const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-                      setFormData({...formData, tempCity: val});
+                      setFormData(prev => ({...prev, tempCity: val}));
                     }} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-1 text-gray-700">State <span className="text-red-600">*</span></label>
                     <input type="text" value={formData.tempState || ''} onChange={(e) => {
                       const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-                      setFormData({...formData, tempState: val});
+                      setFormData(prev => ({...prev, tempState: val}));
                     }} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
                   </div>
                 </div>
@@ -3592,7 +3592,7 @@ function App() {
                   <label className="block text-sm font-semibold mb-1 text-gray-700">Postal Code / Pin Code <span className="text-red-600">*</span></label>
                   <input type="text" value={formData.tempPincode || ''} onChange={(e) => {
                       const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-                      setFormData({...formData, tempPincode: val});
+                      setFormData(prev => ({...prev, tempPincode: val}));
                     }} placeholder="e.g., 110001" maxLength="6" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none" />
                 </div>
               </div>
@@ -3607,13 +3607,13 @@ function App() {
                   onChange={(e) => {
                     setIsSamePermanentAddress(e.target.checked);
                     if (e.target.checked) {
-                      setFormData({
-                        ...formData,
-                        permStreet: formData.tempStreet,
-                        permCity: formData.tempCity,
-                        permState: formData.tempState,
-                        permPincode: formData.tempPincode,
-                      });
+                      setFormData(prev => ({
+                        ...prev,
+                        permStreet: prev.tempStreet,
+                        permCity: prev.tempCity,
+                        permState: prev.tempState,
+                        permPincode: prev.tempPincode,
+                      }));
                     }
                   }}
                   className="w-5 h-5 cursor-pointer"
@@ -3629,21 +3629,21 @@ function App() {
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-semibold mb-1 text-gray-700">Street Address / House No. <span className="text-red-600">*</span></label>
-                    <input type="text" value={formData.permStreet || ''} onChange={(e) => setFormData({...formData, permStreet: e.target.value})} placeholder="e.g., 123 Main Street, Apt 456" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
+                    <input type="text" value={formData.permStreet || ''} onChange={(e) => setFormData(prev => ({...prev, permStreet: e.target.value}))} placeholder="e.g., 123 Main Street, Apt 456" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-semibold mb-1 text-gray-700">City <span className="text-red-600">*</span></label>
                       <input type="text" value={formData.permCity || ''} onChange={(e) => {
                         const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-                        setFormData({...formData, permCity: val});
+                        setFormData(prev => ({...prev, permCity: val}));
                       }} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold mb-1 text-gray-700">State <span className="text-red-600">*</span></label>
                       <input type="text" value={formData.permState || ''} onChange={(e) => {
                         const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
-                        setFormData({...formData, permState: val});
+                        setFormData(prev => ({...prev, permState: val}));
                       }} placeholder="e.g., Delhi" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
                     </div>
                   </div>
@@ -3651,7 +3651,7 @@ function App() {
                     <label className="block text-sm font-semibold mb-1 text-gray-700">Postal Code / Pin Code <span className="text-red-600">*</span></label>
                     <input type="text" value={formData.permPincode || ''} onChange={(e) => {
                       const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-                      setFormData({...formData, permPincode: val});
+                      setFormData(prev => ({...prev, permPincode: val}));
                     }} maxLength="6" placeholder="e.g., 110001" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-500 outline-none" />
                   </div>
                 </div>
@@ -3747,7 +3747,7 @@ function App() {
                   value={formData.emergencyContactPhone}
                   onChange={(e) => {
                     const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
-                    setFormData({...formData, emergencyContactPhone: val});
+                    setFormData(prev => ({...prev, emergencyContactPhone: val}));
                   }}
                   placeholder="+91 XXXXXXXXXX"
                   maxLength="10"
@@ -3929,29 +3929,37 @@ function App() {
                     {(() => {
                       const morning = members.filter(m => m.slot === '9am-3pm' && !m.deleted).length;
                       const evening = members.filter(m => m.slot === '3pm-9pm' && !m.deleted).length;
+                      const morningAvail = Math.max(0, SEATS_PER_SLOT - morning);
+                      const eveningAvail = Math.max(0, SEATS_PER_SLOT - evening);
                       return (
                         <>
                           <button
-                            onClick={() => setSelectedSlot('9am-3pm')}
+                            onClick={() => morningAvail > 0 && setSelectedSlot('9am-3pm')}
+                            disabled={morningAvail <= 0}
                             className={`w-full p-3 rounded-lg border-2 text-left transition ${
-                              selectedSlot === '9am-3pm'
+                              morningAvail <= 0
+                                ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                                : selectedSlot === '9am-3pm'
                                 ? 'border-blue-600 bg-blue-50'
                                 : 'border-gray-300 hover:border-blue-400'
                             }`}
                           >
                             <div className="font-bold">9 AM - 3 PM</div>
-                            <div className="text-sm text-gray-600">Morning slot • {SEATS_PER_SLOT - morning}/{SEATS_PER_SLOT} seats available</div>
+                            <div className="text-sm text-gray-600">Morning slot • {morningAvail > 0 ? `${morningAvail}/${SEATS_PER_SLOT} seats available` : 'FULL — no seats available'}</div>
                           </button>
                           <button
-                            onClick={() => setSelectedSlot('3pm-9pm')}
+                            onClick={() => eveningAvail > 0 && setSelectedSlot('3pm-9pm')}
+                            disabled={eveningAvail <= 0}
                             className={`w-full p-3 rounded-lg border-2 text-left transition ${
-                              selectedSlot === '3pm-9pm'
+                              eveningAvail <= 0
+                                ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                                : selectedSlot === '3pm-9pm'
                                 ? 'border-blue-600 bg-blue-50'
                                 : 'border-gray-300 hover:border-blue-400'
                             }`}
                           >
                             <div className="font-bold">3 PM - 9 PM</div>
-                            <div className="text-sm text-gray-600">Evening slot • {SEATS_PER_SLOT - evening}/{SEATS_PER_SLOT} seats available</div>
+                            <div className="text-sm text-gray-600">Evening slot • {eveningAvail > 0 ? `${eveningAvail}/${SEATS_PER_SLOT} seats available` : 'FULL — no seats available'}</div>
                           </button>
                         </>
                       );
@@ -3960,17 +3968,21 @@ function App() {
                 ) : (
                   (() => {
                     const fullday = members.filter(m => m.slot === '9am-9pm' && !m.deleted).length;
+                    const fulldayAvail = Math.max(0, SEATS_PER_SLOT - fullday);
                     return (
                       <button
-                        onClick={() => setSelectedSlot('9am-9pm')}
+                        onClick={() => fulldayAvail > 0 && setSelectedSlot('9am-9pm')}
+                        disabled={fulldayAvail <= 0}
                         className={`w-full p-3 rounded-lg border-2 text-left transition ${
-                          selectedSlot === '9am-9pm'
+                          fulldayAvail <= 0
+                            ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                            : selectedSlot === '9am-9pm'
                             ? 'border-blue-600 bg-blue-50'
                             : 'border-gray-300 hover:border-blue-400'
                         }`}
                       >
                         <div className="font-bold">9 AM - 9 PM (Full Day)</div>
-                        <div className="text-sm text-gray-600">Full day access • {SEATS_PER_SLOT - fullday}/{SEATS_PER_SLOT} seats available</div>
+                        <div className="text-sm text-gray-600">Full day access • {fulldayAvail > 0 ? `${fulldayAvail}/${SEATS_PER_SLOT} seats available` : 'FULL — no seats available'}</div>
                       </button>
                     );
                   })()
