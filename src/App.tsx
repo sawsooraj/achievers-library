@@ -74,6 +74,26 @@ const logError = (message: string, error?: any) => {
 const getActiveMembers = (members: any[]) => members.filter(m => !m.deleted);
 const getDeletedMembers = (members: any[]) => members.filter(m => m.deleted);
 
+// FIX #213: Retry mechanism for failed async operations
+const retryOperation = async (operation: () => Promise<any>, maxRetries = 3, delayMs = 500) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt === maxRetries) throw error;
+      await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+    }
+  }
+};
+
+// FIX #214: Timeout wrapper for async operations
+const withTimeout = async (promise: Promise<any>, timeoutMs = 10000) => {
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Operation timeout')), timeoutMs)
+  );
+  return Promise.race([promise, timeoutPromise]);
+};
+
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -158,6 +178,9 @@ function App() {
 
   // FIX #203: Track mounted state to prevent setState in unmounted component
   const isMountedRef = useRef(true);
+
+  // FIX #215: Track ongoing operations to prevent concurrent writes
+  const ongoingOperationsRef = useRef<Set<string>>(new Set());
 
   // FIX #203: Cleanup effect - mark as unmounted
   useEffect(() => {
@@ -926,16 +949,27 @@ function App() {
                                 alert('⚠️ This member already has a Membership ID: ' + member.membershipId);
                                 return;
                               }
+
+                              // FIX #215: Prevent concurrent operations on same member
+                              if (ongoingOperationsRef.current.has(member.docId)) {
+                                alert('⏳ Operation in progress for this member...');
+                                return;
+                              }
+
+                              ongoingOperationsRef.current.add(member.docId);
                               try {
                                 const membershipId = `MEM${Date.now()}${Math.floor(Math.random() * 1000)}`;
                                 const memberRef = doc(db, 'members', member.docId);
-                                await updateDoc(memberRef, { membershipId });
+                                // FIX #213: Retry on failure
+                                await retryOperation(() => updateDoc(memberRef, { membershipId }));
                                 alert(`✅ Membership ID generated: ${membershipId}`);
                                 const message = whatsappMessages.welcome(membershipId);
                                 sendWhatsAppMessage(member.phone, message);
                               } catch (error) {
                                 logError('Error accepting member:', error);
                                 alert('❌ Error accepting member. Please try again.');
+                              } finally {
+                                ongoingOperationsRef.current.delete(member.docId);
                               }
                             }}
                             className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
@@ -950,18 +984,28 @@ function App() {
                                 return;
                               }
 
+                              // FIX #215: Prevent concurrent operations
+                              if (ongoingOperationsRef.current.has(member.docId)) {
+                                alert('⏳ Operation in progress for this member...');
+                                return;
+                              }
+
                               if (confirm(`❌ Reject ${member.fullName}? This cannot be undone!`)) {
+                                ongoingOperationsRef.current.add(member.docId);
                                 try {
                                   const memberRef = doc(db, 'members', member.docId);
-                                  await updateDoc(memberRef, {
+                                  // FIX #213: Retry on failure
+                                  await retryOperation(() => updateDoc(memberRef, {
                                     deleted: true,
                                     deletedAt: new Date().toISOString(),
                                     deletedBy: 'admin'
-                                  });
+                                  }));
                                   alert(`✅ Member ${member.fullName} rejected`);
                                 } catch (error) {
                                   logError('Error rejecting member:', error);
                                   alert('❌ Error rejecting member. Please try again.');
+                                } finally {
+                                  ongoingOperationsRef.current.delete(member.docId);
                                 }
                               }
                             }}
