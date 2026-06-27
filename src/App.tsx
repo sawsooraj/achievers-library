@@ -3569,7 +3569,7 @@ function App() {
                         <div className="text-sm text-gray-600">Full day access • {SEATS_PER_SLOT - fullday}/{SEATS_PER_SLOT} seats available</div>
                       </button>
                     );
-                  })()}
+                  })()
                 )}
               </div>
             </div>
@@ -3788,7 +3788,6 @@ function App() {
                   }
 
                   const bookingId = `ABD${Date.now()}${Math.floor(Math.random() * 1000000)}`;
-                  const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
 
                   console.log('📝 Starting submission process...');
 
