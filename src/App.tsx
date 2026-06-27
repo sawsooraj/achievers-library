@@ -160,10 +160,15 @@ function App() {
   const [adminError, setAdminError] = useState('');
   const [adminPage, setAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats' | 'users'>('dashboard');
   const [previousAdminPage, setPreviousAdminPage] = useState<'dashboard' | 'scanner' | 'members' | 'payments' | 'reminders' | 'seats' | 'users'>('dashboard');
-  const [users, setUsers] = useState<any[]>([
-    { id: 'admin1', name: 'Admin', role: 'admin', password: 'admin123', email: 'admin@library.com' },
-    { id: 'staff1', name: 'Staff Member', role: 'staff', password: 'staff123', email: 'staff@library.com' },
-  ]);
+  // FIX: Load users from localStorage so password changes persist
+  const [users, setUsers] = useState<any[]>(() => {
+    const saved = localStorage.getItem('adminUsers');
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: 'admin1', name: 'Admin', role: 'admin', password: 'admin123', email: 'admin@library.com' },
+      { id: 'staff1', name: 'Staff Member', role: 'staff', password: 'staff123', email: 'staff@library.com' },
+    ];
+  });
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editUserPassword, setEditUserPassword] = useState('');
   const [members, setMembers] = useState<any[]>([]);
@@ -199,6 +204,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem('isAdmin', String(isAdmin));
   }, [isAdmin]);
+
+  // FIX: Persist users data to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('adminUsers', JSON.stringify(users));
+  }, [users]);
 
   // Handle browser back button
   useEffect(() => {
@@ -2780,8 +2790,7 @@ function App() {
                             return;
                           }
                           try {
-                            const userRef = doc(db, 'users', editingUser.id);
-                            await updateDoc(userRef, { password: editUserPassword });
+                            // FIX: Update users state (will auto-save to localStorage)
                             setUsers(users.map(u => u.id === editingUser.id ? {...u, password: editUserPassword} : u));
                             alert(`✅ Password updated for ${editingUser.name}`);
                             setEditingUser(null);
