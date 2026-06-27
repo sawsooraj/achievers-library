@@ -63,6 +63,41 @@ const getQueryParams = (searchString: string) => {
   return Object.fromEntries(params);
 };
 
+// Compress/downscale an image file to a JPEG data URL that fits comfortably
+// under Firestore's 1 MiB per-document limit. The screenshot is stored INLINE in
+// the member document, so an un-compressed phone photo (1–5 MB, ~33% larger once
+// base64-encoded) would otherwise make the whole registration write fail.
+const compressImage = (file: File, maxDim = 1000): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read image file'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas not supported'));
+        ctx.drawImage(img, 0, 0, w, h);
+        // Step quality down until the data URL is safely under ~700 KB.
+        let quality = 0.7;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > 700_000 && quality > 0.3) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        resolve(dataUrl);
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+
 // Safe JSON.parse for localStorage reads — corrupted data must never crash the app
 const safeJSONParse = <T,>(raw: string | null, fallback: T): T => {
   if (!raw) return fallback;
@@ -4109,18 +4144,21 @@ function App() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
-                      if (file) {
-                        if (file.size > 5 * 1024 * 1024) {
-                          alert('❌ File size must be less than 5MB');
-                          return;
-                        }
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setUpiScreenshot(reader.result as string);
-                        };
-                        reader.readAsDataURL(file);
+                      if (!file) return;
+                      if (file.size > 10 * 1024 * 1024) {
+                        alert('❌ File size must be less than 10MB');
+                        return;
+                      }
+                      try {
+                        // Always compress — storing a raw photo inline would blow
+                        // past Firestore's 1 MiB document limit and fail the save.
+                        const compressed = await compressImage(file);
+                        setUpiScreenshot(compressed);
+                      } catch (err) {
+                        logError('Image compression failed:', err);
+                        alert('❌ Could not process that image. Please try a different screenshot.');
                       }
                     }}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
