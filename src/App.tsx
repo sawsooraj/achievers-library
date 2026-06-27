@@ -229,11 +229,14 @@ function App() {
       // Handle admin login page separately
       if (page === 'login') {
         setShowAdminLogin(true);
-        setIsAdmin(false);
+        // DON'T set isAdmin here - let handleAdminLogin manage it
       } else {
         // Only allow access to other admin pages if already logged in
+        // FIX: Wait for state to stabilize before checking (small delay)
         if (!isAdmin) {
-          navigate('/admin/login', { replace: true });
+          setTimeout(() => {
+            if (!isAdmin) navigate('/admin/login', { replace: true });
+          }, 10);
         } else {
           setAdminPage(page || 'dashboard');
         }
