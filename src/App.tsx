@@ -101,6 +101,7 @@ function App() {
   const [formData, setFormData] = useState(initialFormData);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSamePermanentAddress, setIsSamePermanentAddress] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false); // FIX #102: Controlled checkbox state
   const [selectedPlan, setSelectedPlan] = useState('');
   const [selectedDayType, setSelectedDayType] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -253,8 +254,10 @@ function App() {
     }
   }, [adminPage, scannedBookingId]);
 
+  // FIX #96: Validate input name exists before setting
   const handleInputChange = (e: any) => {
     const { name, value } = e.target;
+    if (!name || typeof name !== 'string') return;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -528,11 +531,19 @@ function App() {
     }
   };
 
+  // FIX #103: Use Promise.all instead of sequential forEach (faster, concurrent)
   const addDemoData = async () => {
-    // First delete all existing data
-    const existingDocs = await getDocs(collection(db, 'members'));
-    for (const docSnapshot of existingDocs.docs) {
-      await updateDoc(doc(db, 'members', docSnapshot.id), { deleted: true });
+    try {
+      // First delete all existing data - use Promise.all for concurrent updates
+      const existingDocs = await getDocs(collection(db, 'members'));
+      await Promise.all(
+        existingDocs.docs.map(docSnapshot =>
+          updateDoc(doc(db, 'members', docSnapshot.id), { deleted: true })
+        )
+      );
+    } catch (error) {
+      logError('Error deleting demo data:', error);
+      return;
     }
 
     const demoUsers = [
