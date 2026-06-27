@@ -209,8 +209,18 @@ function App() {
 
     if (pathname.startsWith('/admin/')) {
       const page = pathname.replace('/admin/', '') as any;
-      setIsAdmin(true);
-      setAdminPage(page || 'dashboard');
+      // Handle admin login page separately
+      if (page === 'login') {
+        setShowAdminLogin(true);
+        setIsAdmin(false);
+      } else {
+        // Only allow access to other admin pages if already logged in
+        if (!isAdmin) {
+          navigate('/admin/login', { replace: true });
+        } else {
+          setAdminPage(page || 'dashboard');
+        }
+      }
     } else if (pathname.startsWith('/admission/step-')) {
       const stepNum = parseInt(pathname.replace('/admission/step-', ''));
       if (!isNaN(stepNum) && stepNum >= 1 && stepNum <= 7) {
@@ -221,7 +231,7 @@ function App() {
     } else {
       setStep(0);
     }
-  }, [location.pathname]);
+  }, [location.pathname, isAdmin, navigate]);
 
   // Load members from Firestore with real-time updates (FIX #19: Add [] dependency array)
   useEffect(() => {
@@ -2805,7 +2815,7 @@ function App() {
                 Join
               </button>
               <button
-                onClick={() => setShowAdminLogin(!showAdminLogin)}
+                onClick={() => navigate('/admin/login')}
                 className="px-3 py-2 text-gray-600 hover:text-blue-600 transition text-lg md:text-xs font-semibold"
                 title="Admin Panel"
               >
