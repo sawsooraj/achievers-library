@@ -1981,6 +1981,7 @@ function App() {
                         {member.paymentStatus === 'verified' && (
                           <button onClick={() => sendRenewalReminder(member)} className="px-3 py-2 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-600 active:scale-95 transition">⏰ Reminder</button>
                         )}
+                        <button onClick={() => navigate(`/admin/members?detail=${member.docId}`)} title="See full profile + payment proof" className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-bold hover:bg-indigo-200 active:scale-95 transition">🧾 Proof</button>
                         <button onClick={() => sendWelcome(member)} title="Send WhatsApp message" className="px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600 active:scale-95 transition">💬 WhatsApp</button>
                         <button onClick={() => editMemberNote(member)} title="Add/edit a private note" className="px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm font-bold hover:bg-yellow-200 active:scale-95 transition">📝 Note</button>
                         <button onClick={() => { setEditingMember(member); setEditFormData({ ...member }); }} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 active:scale-95 transition">✏️ Edit</button>
