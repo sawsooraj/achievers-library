@@ -376,6 +376,29 @@ function App() {
     localStorage.setItem('adminUsers', JSON.stringify(users));
   }, [users]);
 
+  // Restore an in-progress admission once on mount, so a refresh or an
+  // accidental tab-close doesn't wipe what the student already typed.
+  useEffect(() => {
+    const draft = safeJSONParse<any>(localStorage.getItem('admissionDraft'), null);
+    if (draft?.formData?.fullName) {
+      setFormData(prev => ({ ...prev, ...draft.formData }));
+      if (draft.selectedPlan) setSelectedPlan(draft.selectedPlan);
+      if (draft.selectedDayType) setSelectedDayType(draft.selectedDayType);
+      if (draft.selectedSlot) setSelectedSlot(draft.selectedSlot);
+      if (draft.selectedDate) setSelectedDate(draft.selectedDate);
+      if (draft.isSamePermanentAddress) setIsSamePermanentAddress(true);
+    }
+  }, []);
+
+  // Autosave the in-progress admission (small — screenshot is not included).
+  useEffect(() => {
+    if (formData.fullName || formData.email || formData.phone) {
+      localStorage.setItem('admissionDraft', JSON.stringify({
+        formData, selectedPlan, selectedDayType, selectedSlot, selectedDate, isSamePermanentAddress,
+      }));
+    }
+  }, [formData, selectedPlan, selectedDayType, selectedSlot, selectedDate, isSamePermanentAddress]);
+
   // Handle browser back button
   useEffect(() => {
     const handlePopState = () => {
@@ -772,6 +795,7 @@ function App() {
     setIsSamePermanentAddress(false);
     setPdfDoc(null);
     setPdfBookingId(null);
+    localStorage.removeItem('admissionDraft'); // clear saved draft once done
   };
 
   // Admin Navigation Functions
@@ -4663,6 +4687,7 @@ function App() {
                     return;
                   }
                   log('✅ Member saved. Success modal should show now.');
+                  localStorage.removeItem('admissionDraft'); // submitted — drop the draft
                   log('🎉 Navigating to thank you page');
                   navigate('/admission/step-7');
                 } catch (error: any) {
