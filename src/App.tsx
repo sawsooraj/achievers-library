@@ -133,6 +133,61 @@ const showToast = (msg: string, type: 'success' | 'error' | 'info' = 'success') 
   setTimeout(() => el.remove(), 2900);
 };
 
+// Nice custom confirm dialog (replaces the browser's ugly window.confirm).
+// Promise-based + built on document.body so it works across the app's many
+// early returns. Resolves true on confirm, false on cancel/Esc/backdrop.
+const confirmDialog = (message: string, opts: { confirmText?: string; cancelText?: string; danger?: boolean; title?: string } = {}): Promise<boolean> =>
+  new Promise((resolve) => {
+    const { confirmText = 'Confirm', cancelText = 'Cancel', danger = false, title = '' } = opts;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,39,.5);display:flex;align-items:center;justify-content:center;z-index:100000;padding:16px;font-family:system-ui,sans-serif;opacity:0;transition:opacity .15s;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:18px;max-width:400px;width:100%;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.3);transform:scale(.96);transition:transform .15s;';
+    if (title) { const h = document.createElement('p'); h.textContent = title; h.style.cssText = 'font-size:18px;font-weight:800;color:#111827;margin:0 0 8px;'; box.append(h); }
+    const msg = document.createElement('p'); msg.textContent = message; msg.style.cssText = 'font-size:15px;color:#374151;margin:0 0 22px;line-height:1.55;'; box.append(msg);
+    const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+    const cancel = document.createElement('button'); cancel.textContent = cancelText;
+    cancel.style.cssText = 'padding:11px 20px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;color:#374151;font-weight:700;cursor:pointer;font-size:14px;';
+    const ok = document.createElement('button'); ok.textContent = confirmText;
+    ok.style.cssText = `padding:11px 20px;border-radius:12px;border:none;background:${danger ? '#dc2626' : '#2563eb'};color:#fff;font-weight:800;cursor:pointer;font-size:14px;`;
+    const close = (val: boolean) => { document.removeEventListener('keydown', onKey); overlay.style.opacity = '0'; box.style.transform = 'scale(.96)'; setTimeout(() => overlay.remove(), 150); resolve(val); };
+    cancel.onclick = () => close(false);
+    ok.onclick = () => close(true);
+    overlay.onclick = (e) => { if (e.target === overlay) close(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(false); if (e.key === 'Enter') close(true); };
+    document.addEventListener('keydown', onKey);
+    row.append(cancel, ok); box.append(row); overlay.append(box); document.body.append(overlay);
+    requestAnimationFrame(() => { overlay.style.opacity = '1'; box.style.transform = 'scale(1)'; });
+    ok.focus();
+  });
+
+// Nice custom prompt (replaces window.prompt). Resolves the text, or null on cancel.
+const promptDialog = (message: string, defaultValue = '', opts: { confirmText?: string; placeholder?: string } = {}): Promise<string | null> =>
+  new Promise((resolve) => {
+    const { confirmText = 'Save', placeholder = '' } = opts;
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(17,24,39,.5);display:flex;align-items:center;justify-content:center;z-index:100000;padding:16px;font-family:system-ui,sans-serif;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:18px;max-width:400px;width:100%;padding:26px;box-shadow:0 24px 60px rgba(0,0,0,.3);';
+    const msg = document.createElement('p'); msg.textContent = message; msg.style.cssText = 'font-size:15px;font-weight:600;color:#374151;margin:0 0 12px;';
+    const input = document.createElement('input'); input.value = defaultValue; input.placeholder = placeholder;
+    input.style.cssText = 'width:100%;padding:11px 14px;border:2px solid #e5e7eb;border-radius:12px;font-size:15px;margin-bottom:18px;box-sizing:border-box;outline:none;';
+    input.onfocus = () => { input.style.borderColor = '#2563eb'; };
+    const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+    const cancel = document.createElement('button'); cancel.textContent = 'Cancel';
+    cancel.style.cssText = 'padding:11px 20px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;color:#374151;font-weight:700;cursor:pointer;font-size:14px;';
+    const ok = document.createElement('button'); ok.textContent = confirmText;
+    ok.style.cssText = 'padding:11px 20px;border-radius:12px;border:none;background:#2563eb;color:#fff;font-weight:800;cursor:pointer;font-size:14px;';
+    const close = (val: string | null) => { document.removeEventListener('keydown', onKey); overlay.remove(); resolve(val); };
+    cancel.onclick = () => close(null);
+    ok.onclick = () => close(input.value);
+    overlay.onclick = (e) => { if (e.target === overlay) close(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(null); if (e.key === 'Enter') close(input.value); };
+    document.addEventListener('keydown', onKey);
+    box.append(msg, input); row.append(cancel, ok); box.append(row); overlay.append(box); document.body.append(overlay);
+    input.focus(); input.select();
+  });
+
 // Push one member to a Google Sheet via a user-deployed Apps Script web app.
 // text/plain + no-cors keeps it a "simple" request (no CORS preflight that
 // Apps Script can't answer); we fire-and-forget since the response is opaque.
@@ -1098,7 +1153,7 @@ function App() {
   const handleSyncAllToSheet = async () => {
     if (!localStorage.getItem('sheetWebhookUrl')) { alert('Save your Google Sheet link first.'); return; }
     const active = getActiveMembers(members);
-    if (!confirm(`Send all ${active.length} members to the Google Sheet?`)) return;
+    if (!(await confirmDialog(`Send all ${active.length} members to the Google Sheet?`, { confirmText: 'Send' }))) return;
     for (const m of active) { await syncMemberToSheet(m); await new Promise(res => setTimeout(res, 120)); }
     showToast(`Sent ${active.length} members to the sheet.`, "success");
   };
@@ -1130,7 +1185,7 @@ function App() {
   const rejectAdmission = async (member: any) => {
     if (member.deleted) { showToast('Already rejected', 'info'); return; }
     if (ongoingOperationsRef.current.has(member.docId)) return;
-    if (!confirm(`Reject ${member.fullName}? This removes their admission.`)) return;
+    if (!(await confirmDialog(`Reject ${member.fullName}? This removes their admission.`, { danger: true, confirmText: 'Reject' }))) return;
     ongoingOperationsRef.current.add(member.docId);
     try {
       await retryOperation(() => updateDoc(doc(db, 'members', member.docId), {
@@ -1168,7 +1223,7 @@ function App() {
 
   // Add/edit a private admin note on a member (e.g. "will pay tomorrow").
   const editMemberNote = async (member: any) => {
-    const note = window.prompt(`Note for ${member.fullName}:`, member.adminNote || '');
+    const note = await promptDialog(`Note for ${member.fullName}`, member.adminNote || '', { placeholder: 'e.g. will pay tomorrow' });
     if (note === null) return; // cancelled
     try {
       await updateDoc(doc(db, 'members', member.docId), { adminNote: note.slice(0, 300) });
@@ -1777,13 +1832,13 @@ function App() {
                       className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm"
                     />
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const u = sheetUrl.trim();
                         if (u && !/^https:\/\/script\.google\.com\/.*\/exec$/.test(u)) {
-                          if (!confirm('That does not look like an Apps Script /exec URL. Save anyway?')) return;
+                          if (!(await confirmDialog('That does not look like an Apps Script /exec URL. Save anyway?', { confirmText: 'Save anyway' }))) return;
                         }
                         if (u) localStorage.setItem('sheetWebhookUrl', u); else localStorage.removeItem('sheetWebhookUrl');
-                        alert(u ? '✅ Google Sheet link saved!' : 'Link cleared.');
+                        showToast(u ? 'Google Sheet link saved!' : 'Link cleared.');
                       }}
                       className="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
                     >Save</button>
@@ -1931,7 +1986,7 @@ function App() {
                         <button onClick={() => { setEditingMember(member); setEditFormData({ ...member }); }} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 active:scale-95 transition">✏️ Edit</button>
                         <button
                           onClick={async () => {
-                            if (!confirm(`Delete ${member.fullName}? This cannot be undone.`)) return;
+                            if (!(await confirmDialog(`Delete ${member.fullName}? This cannot be undone.`, { danger: true, confirmText: 'Delete' }))) return;
                             try {
                               await updateDoc(doc(db, 'members', member.docId), { deleted: true, deletedAt: new Date().toISOString(), deletedBy: 'admin' });
                               showToast(`${member.fullName} deleted`);
@@ -2563,7 +2618,7 @@ function App() {
                           return;
                         }
 
-                        if (!confirm(`✅ Save changes for ${editFormData.fullName}?`)) {
+                        if (!(await confirmDialog(`Save changes for ${editFormData.fullName}?`, { confirmText: 'Save' }))) {
                           return;
                         }
 
