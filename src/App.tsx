@@ -46,10 +46,11 @@ const getActiveMembers = (members: any[]) => members.filter(m => !m.deletedAt &&
 
 // Short membership id, e.g. "MEM7K2PX" (MEM + 5 chars). Pass the ids already in
 // use so we can regenerate on the rare collision and keep ids unique.
+// "MEM" + 5 digits, e.g. MEM48213. Pass existing ids to avoid collisions.
 const generateMembershipId = (existingIds: string[] = []) => {
   let id = '';
   do {
-    id = 'MEM' + (Math.random().toString(36).slice(2) + '00000').slice(0, 5).toUpperCase();
+    id = 'MEM' + Math.floor(10000 + Math.random() * 90000); // 10000–99999 (always 5 digits)
   } while (existingIds.includes(id));
   return id;
 };
@@ -336,7 +337,7 @@ function App() {
   const [editFormData, setEditFormData] = useState<any>(null);
   const [scannedBookingId, setScannedBookingId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [memberFilter, setMemberFilter] = useState<'all' | 'approve' | 'verify' | 'active' | 'expiring' | 'expired'>('all');
+  const [memberFilter, setMemberFilter] = useState<'all' | 'approve' | 'verify' | 'active' | 'expiring' | 'expired' | 'rejected' | 'morning' | 'evening' | 'fullday'>('all');
   const [selectedMemberDetail, setSelectedMemberDetail] = useState<any>(null);
 
   // FIX #106: Debounce refs for preventing multiple calls
@@ -1165,6 +1166,19 @@ function App() {
     showToast('Opening WhatsApp…', 'info');
   };
 
+  // Add/edit a private admin note on a member (e.g. "will pay tomorrow").
+  const editMemberNote = async (member: any) => {
+    const note = window.prompt(`Note for ${member.fullName}:`, member.adminNote || '');
+    if (note === null) return; // cancelled
+    try {
+      await updateDoc(doc(db, 'members', member.docId), { adminNote: note.slice(0, 300) });
+      showToast(note.trim() ? 'Note saved' : 'Note cleared');
+    } catch (error) {
+      logError('Error saving note:', error);
+      showToast('Could not save note. Please try again.', 'error');
+    }
+  };
+
   // Send a renewal reminder to one member (WhatsApp draft with their expiry date).
   const sendRenewalReminder = (member: any) => {
     if (!member.phone) { showToast('No phone number for this member', 'error'); return; }
@@ -1680,15 +1694,24 @@ function App() {
         active: searched.filter(m => m.paymentStatus === 'verified'),
         expiring: searched.filter(m => { const d = d2e(m); return m.paymentStatus === 'verified' && d !== null && d >= 0 && d <= 7; }),
         expired: searched.filter(m => { const d = d2e(m); return m.paymentStatus === 'verified' && d !== null && d < 0; }),
+        rejected: searched.filter(m => m.paymentStatus === 'rejected'),
+        morning: searched.filter(m => m.slot === '9am-3pm'),
+        evening: searched.filter(m => m.slot === '3pm-9pm'),
+        fullday: searched.filter(m => m.slot === '9am-9pm'),
       };
       const filtered = byTab[memberFilter] || searched;
+      const act = memberFilters.active;
       const filterChips = [
-        { key: 'all', label: '👥 All', count: memberFilters.active.length },
+        { key: 'all', label: '👥 All', count: act.length },
         { key: 'approve', label: '🆕 Approve', count: memberFilters.noMembershipId.length },
         { key: 'verify', label: '💰 Verify Payment', count: memberFilters.pendingPayments.length },
         { key: 'active', label: '✅ Active', count: memberFilters.verified.length },
         { key: 'expiring', label: '⏰ Expiring', count: memberFilters.expiringSoon.length },
         { key: 'expired', label: '🔴 Expired', count: memberFilters.expired.length },
+        { key: 'rejected', label: '🚫 Rejected', count: act.filter(m => m.paymentStatus === 'rejected').length },
+        { key: 'morning', label: '🌅 Morning', count: act.filter(m => m.slot === '9am-3pm').length },
+        { key: 'evening', label: '🌆 Evening', count: act.filter(m => m.slot === '3pm-9pm').length },
+        { key: 'fullday', label: '🌞 Full-day', count: act.filter(m => m.slot === '9am-9pm').length },
       ];
 
       return (
@@ -1906,6 +1929,9 @@ function App() {
                            member.paymentStatus === 'pending' ? '⏳ Pending' : '❌ Rejected'}
                         </span>
                       </div>
+                      {member.adminNote && (
+                        <div className="mb-3 text-sm bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-3 py-2">📝 {member.adminNote}</div>
+                      )}
                       <div className="flex flex-wrap gap-2">
                         {!member.membershipId && (
                           <button onClick={() => acceptMember(member)} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 active:scale-95 transition">✅ Accept</button>
@@ -1917,6 +1943,7 @@ function App() {
                           <button onClick={() => sendRenewalReminder(member)} className="px-3 py-2 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-600 active:scale-95 transition">⏰ Reminder</button>
                         )}
                         <button onClick={() => sendWelcome(member)} title="Send WhatsApp message" className="px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600 active:scale-95 transition">💬 WhatsApp</button>
+                        <button onClick={() => editMemberNote(member)} title="Add/edit a private note" className="px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm font-bold hover:bg-yellow-200 active:scale-95 transition">📝 Note</button>
                         <button onClick={() => { setEditingMember(member); setEditFormData({ ...member }); }} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 active:scale-95 transition">✏️ Edit</button>
                         <button
                           onClick={async () => {
