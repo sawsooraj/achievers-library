@@ -427,6 +427,9 @@ function App() {
           setTimeout(() => {
             if (!isAdmin) navigate('/admin/login', { replace: true });
           }, 10);
+        } else if (page === 'scanner') {
+          // QR scanner has been removed — send any old link to the dashboard.
+          navigate('/admin/dashboard', { replace: true });
         } else {
           setAdminPage(page || 'dashboard');
         }
@@ -1356,14 +1359,6 @@ function App() {
                   }`}
                 >
                   📈 Dashboard
-                </button>
-                <button
-                  onClick={() => goToAdminPage('scanner')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-semibold ${
-                    adminPage === 'scanner' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  📱 QR Scanner
                 </button>
                 <button
                   onClick={() => goToAdminPage('seats')}
