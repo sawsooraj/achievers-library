@@ -114,6 +114,24 @@ const downloadFile = (filename: string, content: string, type = 'text/csv;charse
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
+// Lightweight non-blocking toast. Works on any screen (the app has many early
+// returns, so this writes straight to document.body instead of using state).
+const showToast = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
+  const bg = type === 'error' ? '#dc2626' : type === 'info' ? '#2563eb' : '#16a34a';
+  const icon = type === 'error' ? '❌' : type === 'info' ? 'ℹ️' : '✅';
+  const el = document.createElement('div');
+  el.textContent = `${icon}  ${msg}`;
+  el.setAttribute('role', 'status');
+  el.style.cssText = `position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(8px);` +
+    `background:${bg};color:#fff;padding:13px 22px;border-radius:12px;font-weight:600;font-size:15px;` +
+    `box-shadow:0 8px 24px rgba(0,0,0,.22);z-index:99999;max-width:90vw;text-align:center;` +
+    `opacity:0;transition:opacity .25s ease, transform .25s ease;font-family:system-ui,sans-serif;`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translateX(-50%) translateY(0)'; });
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(-50%) translateY(8px)'; }, 2600);
+  setTimeout(() => el.remove(), 2900);
+};
+
 // Push one member to a Google Sheet via a user-deployed Apps Script web app.
 // text/plain + no-cors keeps it a "simple" request (no CORS preflight that
 // Apps Script can't answer); we fire-and-forget since the response is opaque.
@@ -849,7 +867,7 @@ function App() {
       const emailQuery = query(collection(db, 'members'), where('email', '==', memberData.email.toLowerCase()), where('deleted', '==', false));
       const emailDocs = await getDocs(emailQuery);
       if (emailDocs.docs.length > 0) {
-        alert('❌ Email already exists! Member with this email is already registered.');
+        showToast('Email already exists! Member with this email is already registered.', "error");
         return false;
       }
 
@@ -857,7 +875,7 @@ function App() {
       const phoneQuery = query(collection(db, 'members'), where('phone', '==', memberData.phone), where('deleted', '==', false));
       const phoneDocs = await getDocs(phoneQuery);
       if (phoneDocs.docs.length > 0) {
-        alert('❌ Phone number already exists! Member with this phone is already registered.');
+        showToast('Phone number already exists! Member with this phone is already registered.', "error");
         return false;
       }
 
@@ -949,10 +967,10 @@ function App() {
         });
       }
       // Don't manually update state - let real-time listener handle it
-      alert(`✅ Added ${demoUsers.length} demo users!`);
+      showToast(`Added ${demoUsers.length} demo users!`, "success");
     } catch (error) {
       logError('Error adding demo data:', error);
-      alert('❌ Error adding demo data');
+      showToast('Error adding demo data', "error");
     }
   };
 
@@ -968,10 +986,10 @@ function App() {
         });
       }
       // Don't update local state - let real-time listener handle it
-      alert('✅ All demo data deleted!');
+      showToast('All demo data deleted!', "success");
     } catch (error) {
       logError('Error deleting data:', error);
-      alert('❌ Error deleting data');
+      showToast('Error deleting data', "error");
     }
   };
 
@@ -1053,31 +1071,108 @@ function App() {
     const active = getActiveMembers(members);
     if (!confirm(`Send all ${active.length} members to the Google Sheet?`)) return;
     for (const m of active) { await syncMemberToSheet(m); await new Promise(res => setTimeout(res, 120)); }
-    alert(`✅ Sent ${active.length} members to the sheet.`);
+    showToast(`Sent ${active.length} members to the sheet.`, "success");
+  };
+
+  // --- Reusable admin actions (toast-based, no blocking popups) ---
+  const acceptMember = async (member: any) => {
+    if (member.membershipId) { showToast('Already accepted', 'info'); return; }
+    if (ongoingOperationsRef.current.has(member.docId)) return;
+    ongoingOperationsRef.current.add(member.docId);
+    try {
+      await retryOperation(() => updateDoc(doc(db, 'members', member.docId), { membershipId: member.id }));
+      showToast(`Accepted — Membership ID ${member.id}`);
+    } catch (error) {
+      logError('Error accepting member:', error);
+      showToast('Could not accept. Please try again.', 'error');
+    } finally {
+      ongoingOperationsRef.current.delete(member.docId);
+    }
+  };
+
+  // Opens a pre-filled WhatsApp welcome (works before OR after accepting, so it
+  // can be re-sent any time). The message is a draft; you tap send in WhatsApp.
+  const sendWelcome = (member: any) => {
+    if (!member.phone) { showToast('No phone number for this member', 'error'); return; }
+    sendWhatsAppMessage(member.phone, whatsappMessages.welcome(member.membershipId || member.id));
+    showToast('Opening WhatsApp…', 'info');
+  };
+
+  const rejectAdmission = async (member: any) => {
+    if (member.deleted) { showToast('Already rejected', 'info'); return; }
+    if (ongoingOperationsRef.current.has(member.docId)) return;
+    if (!confirm(`Reject ${member.fullName}? This removes their admission.`)) return;
+    ongoingOperationsRef.current.add(member.docId);
+    try {
+      await retryOperation(() => updateDoc(doc(db, 'members', member.docId), {
+        deleted: true, deletedAt: new Date().toISOString(), deletedBy: 'admin',
+      }));
+      showToast(`${member.fullName} rejected`);
+    } catch (error) {
+      logError('Error rejecting member:', error);
+      showToast('Could not reject. Please try again.', 'error');
+    } finally {
+      ongoingOperationsRef.current.delete(member.docId);
+    }
+  };
+
+  const verifyPaymentQuick = async (member: any) => {
+    if (paymentVerifyDebounceRef.current[member.id]) return;
+    if (!member.amount || member.amount <= 0) { showToast('Set a valid amount before verifying', 'error'); return; }
+    paymentVerifyDebounceRef.current[member.id] = true;
+    try {
+      await retryOperation(() => updateDoc(doc(db, 'members', member.docId), { paymentStatus: 'verified', verifiedAt: new Date().toISOString() }));
+      showToast(`Payment verified — ₹${member.amount}`);
+    } catch (error) {
+      logError('Error verifying payment:', error);
+      showToast('Could not verify. Please try again.', 'error');
+    } finally {
+      paymentVerifyDebounceRef.current[member.id] = false;
+    }
+  };
+
+  const sendPaymentThanks = (member: any) => {
+    if (!member.phone) { showToast('No phone number for this member', 'error'); return; }
+    sendWhatsAppMessage(member.phone, whatsappMessages.thankYou());
+    showToast('Opening WhatsApp…', 'info');
+  };
+
+  const rejectPaymentQuick = async (member: any) => {
+    if (paymentVerifyDebounceRef.current[member.id]) return;
+    paymentVerifyDebounceRef.current[member.id] = true;
+    try {
+      await retryOperation(() => updateDoc(doc(db, 'members', member.docId), { paymentStatus: 'rejected' }));
+      showToast('Marked as unpaid');
+    } catch (error) {
+      logError('Error rejecting payment:', error);
+      showToast('Could not update. Please try again.', 'error');
+    } finally {
+      paymentVerifyDebounceRef.current[member.id] = false;
+    }
   };
 
   const updateMemberPayment = async (id: string, status: string) => {
     try {
       const member = members.find(m => m.id === id);
       if (!member?.docId) {
-        alert('❌ Member not found');
+        showToast('Member not found', "error");
         return;
       }
       const currentStatus = member.paymentStatus || 'pending';
       if (!isValidPaymentTransition(currentStatus, status, member.amount)) {
         if (status === 'verified' && (!member.amount || member.amount <= 0)) {
-          alert('❌ Cannot verify payment without valid amount');
+          showToast('Cannot verify payment without valid amount', "error");
         } else {
-          alert(`❌ Cannot transition from ${currentStatus} to ${status}`);
+          showToast(`Cannot transition from ${currentStatus} to ${status}`, "error");
         }
         return;
       }
       const memberRef = doc(db, 'members', member.docId);
       await updateDoc(memberRef, { paymentStatus: status });
-      alert(`✅ Payment status updated to "${status}"`);
+      showToast(`Payment status updated to "${status}"`, "success");
     } catch (error) {
       logError('Error updating payment:', error);
-      alert('❌ Error updating payment status. Please try again.');
+      showToast('Error updating payment status. Please try again.', "error");
     }
   };
 
@@ -1327,78 +1422,24 @@ function App() {
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={async () => {
-                              // FIX #208: Prevent double-accepting member
-                              if (member.membershipId) {
-                                alert('⚠️ This member already has a Membership ID: ' + member.membershipId);
-                                return;
-                              }
-
-                              // FIX #215: Prevent concurrent operations on same member
-                              if (ongoingOperationsRef.current.has(member.docId)) {
-                                alert('⏳ Operation in progress for this member...');
-                                return;
-                              }
-
-                              ongoingOperationsRef.current.add(member.docId);
-                              try {
-                                // Reuse the member's existing short id as the membership
-                                // id, so the receipt, welcome message and admin all match
-                                // (no second, longer MEM number).
-                                const membershipId = member.id;
-                                const memberRef = doc(db, 'members', member.docId);
-                                // FIX #213: Retry on failure
-                                await retryOperation(() => updateDoc(memberRef, { membershipId }));
-                                alert(`✅ Membership ID generated: ${membershipId}`);
-                                const message = whatsappMessages.welcome(membershipId);
-                                sendWhatsAppMessage(member.phone, message);
-                              } catch (error) {
-                                logError('Error accepting member:', error);
-                                alert('❌ Error accepting member. Please try again.');
-                              } finally {
-                                ongoingOperationsRef.current.delete(member.docId);
-                              }
-                            }}
-                            className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
+                            onClick={() => acceptMember(member)}
+                            className="flex-1 py-2.5 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 active:scale-95 transition text-sm"
                           >
-                            💬 Accept & WhatsApp
+                            ✅ Accept
                           </button>
                           <button
-                            onClick={async () => {
-                              // FIX #209: Prevent double-deleting member
-                              if (member.deleted) {
-                                alert('⚠️ This member has already been rejected');
-                                return;
-                              }
-
-                              // FIX #215: Prevent concurrent operations
-                              if (ongoingOperationsRef.current.has(member.docId)) {
-                                alert('⏳ Operation in progress for this member...');
-                                return;
-                              }
-
-                              if (confirm(`❌ Reject ${member.fullName}? This cannot be undone!`)) {
-                                ongoingOperationsRef.current.add(member.docId);
-                                try {
-                                  const memberRef = doc(db, 'members', member.docId);
-                                  // FIX #213: Retry on failure
-                                  await retryOperation(() => updateDoc(memberRef, {
-                                    deleted: true,
-                                    deletedAt: new Date().toISOString(),
-                                    deletedBy: 'admin'
-                                  }));
-                                  alert(`✅ Member ${member.fullName} rejected`);
-                                } catch (error) {
-                                  logError('Error rejecting member:', error);
-                                  alert('❌ Error rejecting member. Please try again.');
-                                } finally {
-                                  ongoingOperationsRef.current.delete(member.docId);
-                                }
-                              }
-                            }}
-                            className="flex-1 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 text-sm"
+                            onClick={() => sendWelcome(member)}
+                            title="Send welcome message on WhatsApp"
+                            className="flex-1 py-2.5 bg-emerald-500 text-white font-bold rounded-lg hover:bg-emerald-600 active:scale-95 transition text-sm"
                           >
-                            ❌ Reject
+                            💬 WhatsApp
+                          </button>
+                          <button
+                            onClick={() => rejectAdmission(member)}
+                            title="Reject this admission"
+                            className="px-4 py-2.5 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 active:scale-95 transition text-sm"
+                          >
+                            ❌
                           </button>
                         </div>
                       </div>
@@ -1425,58 +1466,46 @@ function App() {
                         <div className="space-y-4">
                           {pendingPayments.map(member => (
                       <div key={member.id} className="border-2 border-orange-200 p-4 rounded-lg bg-orange-50">
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <p className="text-xs text-gray-600">Name</p>
-                            <p className="font-bold text-lg">{member.fullName}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600">Amount</p>
-                            <p className="font-bold text-orange-600">₹{member.amount || 700}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600">Method</p>
-                            <p className="font-bold capitalize">{member.paymentMethod || 'UPI'}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600">UTR/Ref ID</p>
-                            <p className="font-bold">{member.paymentUTR || member.utrNumber || 'Not provided'}</p>
+                        <div className="flex gap-4 mb-4">
+                          {/* Payment screenshot thumbnail — tap to enlarge */}
+                          {member.upiScreenshot ? (
+                            <img
+                              src={member.upiScreenshot}
+                              alt="Payment proof"
+                              onClick={() => window.open(member.upiScreenshot, '_blank')}
+                              className="w-20 h-20 object-cover rounded-lg border-2 border-orange-300 cursor-pointer flex-shrink-0"
+                              title="Tap to view full screenshot"
+                            />
+                          ) : (
+                            <div className="w-20 h-20 rounded-lg border-2 border-dashed border-orange-300 flex items-center justify-center text-xs text-gray-400 flex-shrink-0 text-center">No screenshot</div>
+                          )}
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 flex-1">
+                            <div><p className="text-xs text-gray-500">Name</p><p className="font-bold">{member.fullName}</p></div>
+                            <div><p className="text-xs text-gray-500">Amount</p><p className="font-bold text-orange-600">₹{member.amount || 0}</p></div>
+                            <div><p className="text-xs text-gray-500">Method</p><p className="font-semibold capitalize">{member.paymentMethod || 'UPI'}</p></div>
+                            <div><p className="text-xs text-gray-500">UTR / Ref</p><p className="font-semibold break-all">{member.paymentUTR || member.utrNumber || '—'}</p></div>
                           </div>
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={async () => {
-                              try {
-                                const memberRef = doc(db, 'members', member.docId);
-                                await updateDoc(memberRef, { paymentStatus: 'verified' });
-                                // Don't update local state - let real-time listener handle it
-                                const message = whatsappMessages.thankYou();
-                                sendWhatsAppMessage(member.phone, message);
-                              } catch (error) {
-                                logError('Error verifying payment:', error);
-                                alert('❌ Error verifying payment');
-                              }
-                            }}
-                            className="flex-1 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm"
+                            onClick={() => verifyPaymentQuick(member)}
+                            className="flex-1 py-2.5 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 active:scale-95 transition text-sm"
                           >
-                            ✅ Verify & WhatsApp
+                            ✅ Verify
                           </button>
                           <button
-                            onClick={async () => {
-                              try {
-                                const memberRef = doc(db, 'members', member.docId);
-                                await updateDoc(memberRef, { paymentStatus: 'rejected' });
-                                // Don't update local state - let real-time listener handle it
-                                const message = whatsappMessages.paymentRequest();
-                                sendWhatsAppMessage(member.phone, message);
-                              } catch (error) {
-                                logError('Error rejecting payment:', error);
-                                alert('❌ Error rejecting payment');
-                              }
-                            }}
-                            className="flex-1 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 text-sm"
+                            onClick={() => sendPaymentThanks(member)}
+                            title="Send thank-you on WhatsApp"
+                            className="flex-1 py-2.5 bg-emerald-500 text-white font-bold rounded-lg hover:bg-emerald-600 active:scale-95 transition text-sm"
                           >
-                            📱 Request Again
+                            💬 Thank
+                          </button>
+                          <button
+                            onClick={() => rejectPaymentQuick(member)}
+                            title="Mark as unpaid"
+                            className="px-4 py-2.5 bg-red-100 text-red-700 font-bold rounded-lg hover:bg-red-200 active:scale-95 transition text-sm"
+                          >
+                            ✗
                           </button>
                         </div>
                       </div>
@@ -1756,10 +1785,10 @@ function App() {
                           }
                         }
                         setSelectedMembers(new Set());
-                        alert(`✅ ${deletedCount} member(s) deleted successfully`);
+                        showToast(`${deletedCount} member(s) deleted successfully`, "success");
                       } catch (error) {
                         logError('Error bulk deleting members:', error);
-                        alert('❌ Error deleting members. Please try again.');
+                        showToast('Error deleting members. Please try again.', "error");
                       }
                     }
                   }}
@@ -1881,10 +1910,10 @@ function App() {
                                     deletedBy: 'admin'
                                   });
                                   // Don't update local state - let real-time listener handle it
-                                  alert(`✅ Member ${member.fullName} deleted successfully`);
+                                  showToast(`Member ${member.fullName} deleted successfully`, "success");
                                 } catch (error) {
                                   logError('Error deleting member:', error);
-                                  alert('❌ Error deleting member. Please try again.');
+                                  showToast('Error deleting member. Please try again.', "error");
                                 }
                               }
                             }}
@@ -2213,10 +2242,10 @@ function App() {
                           pdf.text('Generated on: ' + new Date().toLocaleDateString('en-IN') + ' ' + new Date().toLocaleTimeString('en-IN'), pageWidth / 2, pageHeight - 10, { align: 'center' });
 
                           pdf.save(`${selectedMemberDetail.fullName}_Complete_Profile.pdf`);
-                          alert(`✅ PDF downloaded successfully`);
+                          showToast(`PDF downloaded successfully`, "success");
                         } catch (error) {
                           logError('Error generating PDF:', error);
-                          alert('❌ Error downloading PDF');
+                          showToast('Error downloading PDF', "error");
                         }
                       }}
                       className="flex-1 px-4 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700"
@@ -2457,12 +2486,12 @@ function App() {
                       onClick={async () => {
                         // Validation
                         if (!editFormData.fullName.trim()) {
-                          alert('❌ Full name is required');
+                          showToast('Full name is required', "error");
                           return;
                         }
                         const emailRegex = /^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
                         if (!editFormData.email.trim() || !emailRegex.test(editFormData.email.trim())) {
-                          alert('❌ Valid email is required');
+                          showToast('Valid email is required', "error");
                           return;
                         }
                         // Check if email is already taken (by another member)
@@ -2470,47 +2499,47 @@ function App() {
                         if (newEmail !== (editingMember.email || '').toLowerCase()) {
                           const emailExists = members.some(m => m.id !== editingMember.id && (m.email || '').toLowerCase() === newEmail);
                           if (emailExists) {
-                            alert('❌ This email is already registered');
+                            showToast('This email is already registered', "error");
                             return;
                           }
                         }
                         const phoneRegex = /^[0-9]{10}$/;
                         if (!phoneRegex.test(editFormData.phone)) {
-                          alert('❌ Phone must be 10 digits');
+                          showToast('Phone must be 10 digits', "error");
                           return;
                         }
                         // Check if phone is already taken (by another member)
                         if (editFormData.phone !== editingMember.phone) {
                           const phoneExists = members.some(m => m.id !== editingMember.id && m.phone === editFormData.phone);
                           if (phoneExists) {
-                            alert('❌ This phone number is already registered');
+                            showToast('This phone number is already registered', "error");
                             return;
                           }
                         }
                         if (!editFormData.emergencyContactName.trim()) {
-                          alert('❌ Emergency contact name is required');
+                          showToast('Emergency contact name is required', "error");
                           return;
                         }
                         if (!phoneRegex.test(editFormData.emergencyContactPhone)) {
-                          alert('❌ Emergency contact phone must be 10 digits');
+                          showToast('Emergency contact phone must be 10 digits', "error");
                           return;
                         }
                         if (!editFormData.tempStreet.trim() || !editFormData.tempCity.trim() || !editFormData.tempState.trim() || !editFormData.tempPincode.trim()) {
-                          alert('❌ Temporary address fields are required');
+                          showToast('Temporary address fields are required', "error");
                           return;
                         }
                         if (!editFormData.plan) {
-                          alert('❌ Plan is required');
+                          showToast('Plan is required', "error");
                           return;
                         }
                         if (!editFormData.slot) {
-                          alert('❌ Time slot is required');
+                          showToast('Time slot is required', "error");
                           return;
                         }
                         // A payment can't be 'verified' without a real amount — keep
                         // this consistent with the payment-review state machine.
                         if (editFormData.paymentStatus === 'verified' && (!Number(editFormData.amount) || Number(editFormData.amount) <= 0)) {
-                          alert('❌ Cannot mark payment "verified" with amount ₹0. Set a valid amount first.');
+                          showToast('Cannot mark payment "verified" with amount ₹0. Set a valid amount first.', "error");
                           return;
                         }
 
@@ -2544,11 +2573,11 @@ function App() {
                             // This prevents race conditions where listener overwrites our update
                             setEditingMember(null);
                             setEditFormData(null);
-                            alert(`✅ ${editFormData.fullName} updated successfully!`);
+                            showToast(`${editFormData.fullName} updated successfully!`, "success");
                           }
                         } catch (error) {
                           logError('Error updating member:', error);
-                          alert('❌ Error saving changes. Please try again.');
+                          showToast('Error saving changes. Please try again.', "error");
                         } finally {
                           setIsSavingMember(false);
                         }
@@ -2766,13 +2795,13 @@ function App() {
                     onClick={async () => {
                       // FIX #201: Prevent multiple reject calls
                       if (paymentVerifyDebounceRef.current[selectedPaymentForReview.id]) {
-                        alert('⏳ Already processing payment...');
+                        showToast('Already processing payment...', "info");
                         return;
                       }
 
                       // FIX #211: Prevent rejecting already rejected payment
                       if (selectedPaymentForReview.paymentStatus === 'rejected') {
-                        alert('⚠️ This payment has already been rejected');
+                        showToast('This payment has already been rejected', "info");
                         return;
                       }
 
@@ -2792,7 +2821,7 @@ function App() {
                           }
                         } catch (error) {
                           logError('Error rejecting payment:', error);
-                          alert('❌ Error rejecting payment');
+                          showToast('Error rejecting payment', "error");
                         } finally {
                           paymentVerifyDebounceRef.current[selectedPaymentForReview.id] = false;
                         }
@@ -2806,13 +2835,13 @@ function App() {
                     onClick={async () => {
                       // FIX #201: Prevent multiple verify calls
                       if (paymentVerifyDebounceRef.current[selectedPaymentForReview.id]) {
-                        alert('⏳ Already verifying payment...');
+                        showToast('Already verifying payment...', "info");
                         return;
                       }
 
                       // FIX #211: Prevent verifying already verified payment
                       if (selectedPaymentForReview.paymentStatus === 'verified') {
-                        alert('✅ This payment has already been verified');
+                        showToast('This payment has already been verified', "success");
                         return;
                       }
 
@@ -2831,7 +2860,7 @@ function App() {
                           }
                         } catch (error) {
                           logError('Error verifying payment:', error);
-                          alert('❌ Error verifying payment');
+                          showToast('Error verifying payment', "error");
                         } finally {
                           paymentVerifyDebounceRef.current[selectedPaymentForReview.id] = false;
                         }
@@ -3157,7 +3186,7 @@ function App() {
                       }
                       localStorage.setItem('customAdminPassword', newPassword);
                       (document.getElementById('newAdminPassword') as HTMLInputElement).value = '';
-                      alert(`✅ Admin password changed successfully!`);
+                      showToast(`Admin password changed successfully!`, "success");
                     }}
                     className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
                   >
@@ -3266,12 +3295,12 @@ function App() {
                           try {
                             // FIX: Update users state (will auto-save to localStorage)
                             setUsers(users.map(u => u.id === editingUser.id ? {...u, password: editUserPassword} : u));
-                            alert(`✅ Password updated for ${editingUser.name}`);
+                            showToast(`Password updated for ${editingUser.name}`, "success");
                             setEditingUser(null);
                             setEditUserPassword('');
                           } catch (error) {
                             logError('Error updating password:', error);
-                            alert('❌ Error updating password');
+                            showToast('Error updating password', "error");
                           }
                         }}
                         className="flex-1 py-2 bg-green-600 text-white font-bold rounded hover:bg-green-700"
@@ -3888,7 +3917,7 @@ function App() {
 
                   if (Object.keys(errors).length > 0) {
                     setFormErrors(errors);
-                    alert(`❌ Please fix the highlighted fields (${Object.keys(errors).length} errors)`);
+                    showToast(`Please fix the highlighted fields (${Object.keys(errors).length} errors)`, "error");
                     return;
                   }
 
@@ -4485,7 +4514,7 @@ function App() {
                       const file = e.target.files?.[0];
                       if (!file) return;
                       if (file.size > 10 * 1024 * 1024) {
-                        alert('❌ File size must be less than 10MB');
+                        showToast('File size must be less than 10MB', "error");
                         return;
                       }
                       try {
@@ -4495,7 +4524,7 @@ function App() {
                         setUpiScreenshot(compressed);
                       } catch (err) {
                         logError('Image compression failed:', err);
-                        alert('❌ Could not process that image. Please try a different screenshot.');
+                        showToast('Could not process that image. Please try a different screenshot.', "error");
                       }
                     }}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none"
@@ -4540,12 +4569,12 @@ function App() {
 
                   // FIX #11: Validate plan and daytype not empty before using
                   if (!selectedPlan || selectedPlan.trim() === '') {
-                    alert('❌ Please select a plan (Monthly/Quarterly/Half-yearly/Yearly)');
+                    showToast('Please select a plan (Monthly/Quarterly/Half-yearly/Yearly)', "error");
                     setIsSubmitting(false);
                     return;
                   }
                   if (!selectedDayType || selectedDayType.trim() === '') {
-                    alert('❌ Please select day type (Half-day/Full-day)');
+                    showToast('Please select day type (Half-day/Full-day)', "error");
                     setIsSubmitting(false);
                     return;
                   }
@@ -4553,7 +4582,7 @@ function App() {
                   // FIX #6: Validate amount is greater than 0
                   const amount = PLANS[selectedPlan as keyof typeof PLANS]?.[selectedDayType as keyof typeof PLANS[keyof typeof PLANS]] || 0;
                   if (amount <= 0) {
-                    alert('❌ Invalid plan or day type selected - Amount is ₹0');
+                    showToast('Invalid plan or day type selected - Amount is ₹0', "error");
                     setIsSubmitting(false);
                     return;
                   }
@@ -4735,10 +4764,10 @@ function App() {
                   try {
                     const pdf = pdfDoc || await generatePDF(bookingId, amount);
                     if (pdf) pdf.save(`Admission_${bookingId}.pdf`);
-                    else alert('❌ Could not generate the PDF. Please try again.');
+                    else showToast('Could not generate the PDF. Please try again.', "error");
                   } catch (e) {
                     logError('PDF download failed:', e);
-                    alert('❌ Could not generate the PDF. Please try again.');
+                    showToast('Could not generate the PDF. Please try again.', "error");
                   }
                 }}
                 className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
