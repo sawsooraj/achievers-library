@@ -336,6 +336,7 @@ function App() {
   const [editFormData, setEditFormData] = useState<any>(null);
   const [scannedBookingId, setScannedBookingId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [memberFilter, setMemberFilter] = useState<'all' | 'approve' | 'verify' | 'active' | 'expiring' | 'expired'>('all');
   const [selectedMemberDetail, setSelectedMemberDetail] = useState<any>(null);
 
   // FIX #106: Debounce refs for preventing multiple calls
@@ -1161,6 +1162,14 @@ function App() {
     showToast('Opening WhatsApp…', 'info');
   };
 
+  // Send a renewal reminder to one member (WhatsApp draft with their expiry date).
+  const sendRenewalReminder = (member: any) => {
+    if (!member.phone) { showToast('No phone number for this member', 'error'); return; }
+    const exp = getMembershipExpiry(member);
+    sendWhatsAppMessage(member.phone, whatsappMessages.renewal(exp ? exp.toLocaleDateString('en-IN') : 'soon'));
+    showToast('Opening WhatsApp…', 'info');
+  };
+
   const rejectPaymentQuick = async (member: any) => {
     if (paymentVerifyDebounceRef.current[member.id]) return;
     paymentVerifyDebounceRef.current[member.id] = true;
@@ -1217,11 +1226,21 @@ function App() {
   const memberFilters = useMemo(() => {
     const active = getActiveMembers(members);
     const q = searchQuery.trim().toLowerCase();
+    const now = Date.now();
+    const DAY = 86400000;
+    const daysToExpiry = (m: any) => {
+      const exp = getMembershipExpiry(m);
+      return exp ? Math.ceil((exp.getTime() - now) / DAY) : null;
+    };
     return {
       active,
+      daysToExpiry,
       noMembershipId: active.filter(m => !m.membershipId),
       pendingPayments: active.filter(m => m.paymentStatus === 'pending'),
       verified: active.filter(m => m.paymentStatus === 'verified'),
+      // Expiry buckets only make sense for verified members with a start date.
+      expiringSoon: active.filter(m => { const d = daysToExpiry(m); return m.paymentStatus === 'verified' && d !== null && d >= 0 && d <= 7; }),
+      expired: active.filter(m => { const d = daysToExpiry(m); return m.paymentStatus === 'verified' && d !== null && d < 0; }),
       searchFiltered: q.length === 0 ? active : active.filter(m =>
         (m.fullName?.toLowerCase().includes(q) || false) ||
         (m.email?.toLowerCase().includes(q) || false) ||
@@ -1655,10 +1674,27 @@ function App() {
       );
     }
 
-    // Members Page
+    // Members Page — command center: search + status filters + per-member actions
     if ((adminPage as string) === 'members') {
-      // FIX #105: Use memoized filtered members instead of recalculating
-      const filtered = memberFilters.searchFiltered;
+      const searched = memberFilters.searchFiltered;
+      const d2e = memberFilters.daysToExpiry;
+      const byTab: Record<string, any[]> = {
+        all: searched,
+        approve: searched.filter(m => !m.membershipId),
+        verify: searched.filter(m => m.paymentStatus === 'pending'),
+        active: searched.filter(m => m.paymentStatus === 'verified'),
+        expiring: searched.filter(m => { const d = d2e(m); return m.paymentStatus === 'verified' && d !== null && d >= 0 && d <= 7; }),
+        expired: searched.filter(m => { const d = d2e(m); return m.paymentStatus === 'verified' && d !== null && d < 0; }),
+      };
+      const filtered = byTab[memberFilter] || searched;
+      const filterChips = [
+        { key: 'all', label: '👥 All', count: memberFilters.active.length },
+        { key: 'approve', label: '🆕 Approve', count: memberFilters.noMembershipId.length },
+        { key: 'verify', label: '💰 Verify Payment', count: memberFilters.pendingPayments.length },
+        { key: 'active', label: '✅ Active', count: memberFilters.verified.length },
+        { key: 'expiring', label: '⏰ Expiring', count: memberFilters.expiringSoon.length },
+        { key: 'expired', label: '🔴 Expired', count: memberFilters.expired.length },
+      ];
 
       return (
         <div className="min-h-screen bg-gray-50">
@@ -1823,135 +1859,89 @@ function App() {
               </div>
             )}
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              {filtered.length === 0 ? (
-                <div className="p-8 text-center">
-                  {members.length === 0 ? (
-                    <div className="text-gray-500">
-                      <p className="text-2xl mb-2">📭</p>
-                      <p className="font-semibold">No members yet</p>
-                      <p className="text-sm text-gray-400 mt-1">Members who complete admission will appear here</p>
-                    </div>
-                  ) : (
-                    <div className="text-gray-500">
-                      <p className="text-2xl mb-2">🔍</p>
-                      <p className="font-semibold">No matching members</p>
-                      <p className="text-sm text-gray-400 mt-1">Try searching with a different name, email, or phone</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <table className="w-full">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="text-left py-4 px-6 w-10">
-                        <input
-                          type="checkbox"
-                          checked={filtered.length > 0 && filtered.every(m => selectedMembers.has(m.id))}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              const newSelected = new Set(selectedMembers);
-                              filtered.forEach(m => newSelected.add(m.id));
-                              setSelectedMembers(newSelected);
-                            } else {
-                              const newSelected = new Set(selectedMembers);
-                              filtered.forEach(m => newSelected.delete(m.id));
-                              setSelectedMembers(newSelected);
-                            }
-                          }}
-                          className="w-5 h-5 cursor-pointer"
-                        />
-                      </th>
-                      <th className="text-left py-4 px-6">Name</th>
-                      <th className="text-left py-4 px-6">ID</th>
-                      <th className="text-left py-4 px-6">Email</th>
-                      <th className="text-left py-4 px-6">Phone</th>
-                      <th className="text-left py-4 px-6">Plan</th>
-                      <th className="text-left py-4 px-6">Status</th>
-                      <th className="text-left py-4 px-6">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map(member => (
-                      <tr key={member.id} className="border-b hover:bg-gray-50">
-                        <td className="py-4 px-6 w-10">
-                          <input
-                            type="checkbox"
-                            checked={selectedMembers.has(member.id)}
-                            onChange={(e) => {
-                              const newSelected = new Set(selectedMembers);
-                              if (e.target.checked) {
-                                newSelected.add(member.id);
-                              } else {
-                                newSelected.delete(member.id);
-                              }
-                              setSelectedMembers(newSelected);
-                            }}
-                            className="w-5 h-5 cursor-pointer"
-                          />
-                        </td>
-                        <td className="py-4 px-6">
+            {/* Status filter chips — find anyone, any time */}
+            <div className="mb-5 flex flex-wrap gap-2">
+              {filterChips.map(c => (
+                <button
+                  key={c.key}
+                  onClick={() => setMemberFilter(c.key as any)}
+                  className={`px-3 py-2 rounded-full text-sm font-semibold border-2 transition active:scale-95 ${
+                    memberFilter === c.key ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
+                  }`}
+                >
+                  {c.label} <span className={memberFilter === c.key ? 'text-blue-100' : 'text-gray-400'}>{c.count}</span>
+                </button>
+              ))}
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                <p className="text-2xl mb-2">📭</p>
+                <p className="font-semibold">{members.length === 0 ? 'No members yet' : 'Nothing in this list'}</p>
+                <p className="text-sm text-gray-400 mt-1">{searchQuery ? 'Try a different search' : 'Members will appear here'}</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filtered.map(member => {
+                  const days = d2e(member);
+                  const expText = member.paymentStatus === 'verified' && days !== null
+                    ? (days < 0 ? `🔴 Expired ${-days}d ago` : days <= 7 ? `⏰ Expires in ${days}d` : `Valid · ${days}d left`)
+                    : null;
+                  return (
+                    <div key={member.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="min-w-0">
                           <button
                             onClick={() => navigate(`/admin/members?detail=${member.docId}`)}
-                            className="font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                            className="font-bold text-blue-700 hover:underline text-left text-lg leading-tight"
                           >
                             {member.fullName}
                           </button>
-                        </td>
-                        <td className="py-4 px-6 font-mono text-sm">{member.id}</td>
-                        <td className="py-4 px-6">{member.email}</td>
-                        <td className="py-4 px-6">{member.phone}</td>
-                        <td className="py-4 px-6">{member.plan}</td>
-                        <td className="py-4 px-6">
-                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                            member.paymentStatus === 'verified' ? 'bg-green-100 text-green-800' :
-                            member.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {member.paymentStatus === 'verified' ? '✅ Verified' :
-                             member.paymentStatus === 'pending' ? '⏳ Pending' :
-                             '❌ Rejected'}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 flex gap-2">
-                          <button
-                            onClick={() => {
-                              setEditingMember(member);
-                              setEditFormData({...member});
-                            }}
-                            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-semibold"
-                          >
-                            ✏️ Edit
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (confirm(`🗑️ Delete ${member.fullName}? This cannot be undone!`)) {
-                                try {
-                                  // Soft delete in Firestore
-                                  await updateDoc(doc(db, 'members', member.docId), {
-                                    deleted: true,
-                                    deletedAt: new Date().toISOString(),
-                                    deletedBy: 'admin'
-                                  });
-                                  // Don't update local state - let real-time listener handle it
-                                  showToast(`Member ${member.fullName} deleted successfully`, "success");
-                                } catch (error) {
-                                  logError('Error deleting member:', error);
-                                  showToast('Error deleting member. Please try again.', "error");
-                                }
-                              }
-                            }}
-                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm font-semibold"
-                          >
-                            🗑️ Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                          <p className="text-xs text-gray-500 font-mono mt-0.5">{member.id} · {member.plan}{member.slot ? ' · ' + member.slot : ''}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">📞 {member.phone}{expText ? '   ·   ' + expText : ''}</p>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
+                          !member.membershipId ? 'bg-purple-100 text-purple-700' :
+                          member.paymentStatus === 'verified' ? 'bg-green-100 text-green-800' :
+                          member.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {!member.membershipId ? '🆕 Approve' :
+                           member.paymentStatus === 'verified' ? '✅ Verified' :
+                           member.paymentStatus === 'pending' ? '⏳ Pending' : '❌ Rejected'}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {!member.membershipId && (
+                          <button onClick={() => acceptMember(member)} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 active:scale-95 transition">✅ Accept</button>
+                        )}
+                        {member.paymentStatus === 'pending' && (
+                          <button onClick={() => verifyPaymentQuick(member)} className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 active:scale-95 transition">💰 Verify</button>
+                        )}
+                        {member.paymentStatus === 'verified' && (
+                          <button onClick={() => sendRenewalReminder(member)} className="px-3 py-2 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-600 active:scale-95 transition">⏰ Reminder</button>
+                        )}
+                        <button onClick={() => sendWelcome(member)} title="Send WhatsApp message" className="px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600 active:scale-95 transition">💬 WhatsApp</button>
+                        <button onClick={() => { setEditingMember(member); setEditFormData({ ...member }); }} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 active:scale-95 transition">✏️ Edit</button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Delete ${member.fullName}? This cannot be undone.`)) return;
+                            try {
+                              await updateDoc(doc(db, 'members', member.docId), { deleted: true, deletedAt: new Date().toISOString(), deletedBy: 'admin' });
+                              showToast(`${member.fullName} deleted`);
+                            } catch (error) {
+                              logError('Error deleting member:', error);
+                              showToast('Could not delete. Please try again.', 'error');
+                            }
+                          }}
+                          className="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 active:scale-95 transition"
+                        >🗑️</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <button
               onClick={() => goBackAdmin()}
