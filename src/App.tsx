@@ -2032,6 +2032,69 @@ function App() {
 
                   {/* Tabs-like sections */}
                   <div className="space-y-6 max-h-96 overflow-y-auto pr-4">
+                    {/* PAYMENT DETAILS — shown first (admins check this most) */}
+                    <div className="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-500">
+                      <h3 className="font-bold text-lg mb-4 text-indigo-900">💳 Payment Details</h3>
+
+                      {/* Top Row: Amount & Status */}
+                      <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b">
+                        <div>
+                          <p className="text-xs text-gray-600">Amount Paid</p>
+                          <p className="font-bold text-2xl text-green-600">₹{selectedMemberDetail.amount || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">Payment Status</p>
+                          <span className={`inline-block px-3 py-2 rounded-full text-sm font-bold ${
+                            selectedMemberDetail.paymentStatus === 'verified'
+                              ? 'bg-green-200 text-green-800'
+                              : selectedMemberDetail.paymentStatus === 'pending'
+                              ? 'bg-yellow-200 text-yellow-800'
+                              : 'bg-red-200 text-red-800'
+                          }`}>
+                            {selectedMemberDetail.paymentStatus === 'verified' ? '✅ Verified' :
+                             selectedMemberDetail.paymentStatus === 'pending' ? '⏳ Pending' :
+                             '❌ Rejected'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Middle Row: Method & UTR */}
+                      <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b">
+                        <div>
+                          <p className="text-xs text-gray-600">Payment Method</p>
+                          <p className="font-semibold text-base">{selectedMemberDetail.paymentMethod === 'upi' ? '📱 UPI' : '💵 Cash'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">UTR / Reference ID</p>
+                          <p className="font-semibold text-base">{selectedMemberDetail.paymentUTR || selectedMemberDetail.utrNumber || '—'}</p>
+                        </div>
+                      </div>
+
+                      {/* Payment Screenshot - Full Width */}
+                      {selectedMemberDetail.upiScreenshot && selectedMemberDetail.paymentMethod === 'upi' ? (
+                        <div>
+                          <p className="text-xs text-gray-600 font-bold mb-3">📸 Payment Proof Screenshot</p>
+                          <div className="bg-white p-2 rounded-lg border-2 border-indigo-300">
+                            <img
+                              src={selectedMemberDetail.upiScreenshot}
+                              alt="Payment proof"
+                              className="w-full max-h-64 object-contain rounded cursor-pointer hover:opacity-90 transition"
+                              onClick={() => window.open(selectedMemberDetail.upiScreenshot, '_blank')}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">📌 Click to view full size</p>
+                        </div>
+                      ) : selectedMemberDetail.paymentMethod === 'upi' ? (
+                        <div className="bg-white p-4 rounded-lg border-2 border-yellow-300 text-center">
+                          <p className="text-sm text-gray-600">📸 No payment screenshot uploaded</p>
+                        </div>
+                      ) : (
+                        <div className="bg-white p-4 rounded-lg border-2 border-green-300 text-center">
+                          <p className="text-sm text-gray-600">💵 Cash payment - No screenshot required</p>
+                        </div>
+                      )}
+                    </div>
+
                     {/* 1. PERSONAL INFORMATION */}
                     <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
                       <h3 className="font-bold text-lg mb-3 text-blue-900">📋 Personal Information</h3>
@@ -2139,69 +2202,6 @@ function App() {
                           <p className="font-semibold">{selectedMemberDetail.startDate ? new Date(selectedMemberDetail.startDate).toLocaleDateString('en-IN') : 'N/A'}</p>
                         </div>
                       </div>
-                    </div>
-
-                    {/* 6. PAYMENT DETAILS */}
-                    <div className="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-500">
-                      <h3 className="font-bold text-lg mb-4 text-indigo-900">💳 Payment Details</h3>
-
-                      {/* Top Row: Amount & Status */}
-                      <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b">
-                        <div>
-                          <p className="text-xs text-gray-600">Amount Paid</p>
-                          <p className="font-bold text-2xl text-green-600">₹{selectedMemberDetail.amount || 0}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600">Payment Status</p>
-                          <span className={`inline-block px-3 py-2 rounded-full text-sm font-bold ${
-                            selectedMemberDetail.paymentStatus === 'verified'
-                              ? 'bg-green-200 text-green-800'
-                              : selectedMemberDetail.paymentStatus === 'pending'
-                              ? 'bg-yellow-200 text-yellow-800'
-                              : 'bg-red-200 text-red-800'
-                          }`}>
-                            {selectedMemberDetail.paymentStatus === 'verified' ? '✅ Verified' :
-                             selectedMemberDetail.paymentStatus === 'pending' ? '⏳ Pending' :
-                             '❌ Rejected'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Middle Row: Method & UTR */}
-                      <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b">
-                        <div>
-                          <p className="text-xs text-gray-600">Payment Method</p>
-                          <p className="font-semibold text-base">{selectedMemberDetail.paymentMethod === 'upi' ? '📱 UPI' : '💵 Cash'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600">UTR / Reference ID</p>
-                          <p className="font-semibold text-base">{selectedMemberDetail.paymentUTR || selectedMemberDetail.utrNumber || '—'}</p>
-                        </div>
-                      </div>
-
-                      {/* Payment Screenshot - Full Width */}
-                      {selectedMemberDetail.upiScreenshot && selectedMemberDetail.paymentMethod === 'upi' ? (
-                        <div>
-                          <p className="text-xs text-gray-600 font-bold mb-3">📸 Payment Proof Screenshot</p>
-                          <div className="bg-white p-2 rounded-lg border-2 border-indigo-300">
-                            <img
-                              src={selectedMemberDetail.upiScreenshot}
-                              alt="Payment proof"
-                              className="w-full max-h-64 object-contain rounded cursor-pointer hover:opacity-90 transition"
-                              onClick={() => window.open(selectedMemberDetail.upiScreenshot, '_blank')}
-                            />
-                          </div>
-                          <p className="text-xs text-gray-500 mt-2">📌 Click to view full size</p>
-                        </div>
-                      ) : selectedMemberDetail.paymentMethod === 'upi' ? (
-                        <div className="bg-white p-4 rounded-lg border-2 border-yellow-300 text-center">
-                          <p className="text-sm text-gray-600">📸 No payment screenshot uploaded</p>
-                        </div>
-                      ) : (
-                        <div className="bg-white p-4 rounded-lg border-2 border-green-300 text-center">
-                          <p className="text-sm text-gray-600">💵 Cash payment - No screenshot required</p>
-                        </div>
-                      )}
                     </div>
 
                     {/* 7. REFERRAL & OTHER */}
