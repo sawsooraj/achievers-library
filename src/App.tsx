@@ -188,6 +188,25 @@ const promptDialog = (message: string, defaultValue = '', opts: { confirmText?: 
     input.focus(); input.select();
   });
 
+// Full-screen image preview. window.open() on a base64 data URL is blocked by
+// most browsers (esp. mobile Chrome), so we show the image in an in-app overlay.
+const showImagePreview = (src: string) => {
+  if (!src) return;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:100001;padding:20px;cursor:zoom-out;';
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:100%;max-height:90vh;border-radius:10px;box-shadow:0 10px 50px rgba(0,0,0,.6);';
+  const hint = document.createElement('div');
+  hint.textContent = '✕ Tap anywhere to close';
+  hint.style.cssText = 'position:fixed;top:18px;right:22px;color:#fff;font-family:system-ui,sans-serif;font-size:15px;font-weight:700;';
+  const close = () => { document.removeEventListener('keydown', onKey); overlay.remove(); };
+  overlay.onclick = close;
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  overlay.append(img, hint); document.body.append(overlay);
+};
+
 // Push one member to a Google Sheet via a user-deployed Apps Script web app.
 // text/plain + no-cors keeps it a "simple" request (no CORS preflight that
 // Apps Script can't answer); we fire-and-forget since the response is opaque.
@@ -1563,7 +1582,7 @@ function App() {
                             <img
                               src={member.upiScreenshot}
                               alt="Payment proof"
-                              onClick={() => window.open(member.upiScreenshot, '_blank')}
+                              onClick={() => showImagePreview(member.upiScreenshot)}
                               className="w-20 h-20 object-cover rounded-lg border-2 border-orange-300 cursor-pointer flex-shrink-0"
                               title="Tap to view full screenshot"
                             />
@@ -2079,7 +2098,7 @@ function App() {
                               src={selectedMemberDetail.upiScreenshot}
                               alt="Payment proof"
                               className="w-full max-h-64 object-contain rounded cursor-pointer hover:opacity-90 transition"
-                              onClick={() => window.open(selectedMemberDetail.upiScreenshot, '_blank')}
+                              onClick={() => showImagePreview(selectedMemberDetail.upiScreenshot)}
                             />
                           </div>
                           <p className="text-xs text-gray-500 mt-2">📌 Click to view full size</p>
