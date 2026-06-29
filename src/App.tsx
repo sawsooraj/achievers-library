@@ -1149,7 +1149,9 @@ function App() {
         const rawStatus = cell('Payment Status').toLowerCase().trim();
         const paymentStatus = ['verified', 'pending', 'rejected'].includes(rawStatus) ? rawStatus : 'pending';
         const member = {
-          id, fullName, email, phone,
+          id,
+          membershipId: id, // imported members are existing -> already approved
+          fullName, email, phone,
           plan: cell('Plan'), slot: cell('Slot'),
           amount: Number(cell('Amount').replace(/[^0-9.]/g, '')) || 0,
           paymentStatus,
