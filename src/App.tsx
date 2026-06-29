@@ -117,6 +117,9 @@ const downloadFile = (filename: string, content: string, type = 'text/csv;charse
 
 // Lightweight non-blocking toast. Works on any screen (the app has many early
 // returns, so this writes straight to document.body instead of using state).
+// Multiple toasts STACK upward instead of overlapping.
+const toastStack: HTMLElement[] = [];
+const repositionToasts = () => toastStack.forEach((t, i) => { t.style.bottom = `${28 + i * 58}px`; });
 const showToast = (msg: string, type: 'success' | 'error' | 'info' = 'success') => {
   const bg = type === 'error' ? '#dc2626' : type === 'info' ? '#2563eb' : '#16a34a';
   const icon = type === 'error' ? '❌' : type === 'info' ? 'ℹ️' : '✅';
@@ -126,11 +129,17 @@ const showToast = (msg: string, type: 'success' | 'error' | 'info' = 'success') 
   el.style.cssText = `position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(8px);` +
     `background:${bg};color:#fff;padding:13px 22px;border-radius:12px;font-weight:600;font-size:15px;` +
     `box-shadow:0 8px 24px rgba(0,0,0,.22);z-index:99999;max-width:90vw;text-align:center;` +
-    `opacity:0;transition:opacity .25s ease, transform .25s ease;font-family:system-ui,sans-serif;`;
+    `opacity:0;transition:opacity .25s ease, transform .25s ease, bottom .2s ease;font-family:system-ui,sans-serif;`;
   document.body.appendChild(el);
+  toastStack.push(el);
+  repositionToasts();
   requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translateX(-50%) translateY(0)'; });
   setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(-50%) translateY(8px)'; }, 2600);
-  setTimeout(() => el.remove(), 2900);
+  setTimeout(() => {
+    el.remove();
+    const i = toastStack.indexOf(el); if (i >= 0) toastStack.splice(i, 1);
+    repositionToasts();
+  }, 2900);
 };
 
 // Nice custom confirm dialog (replaces the browser's ugly window.confirm).
@@ -802,7 +811,7 @@ function App() {
       return doc;
     } catch (error) {
       logError('PDF generation error:', error);
-      alert('Error generating PDF. Please try again.');
+      showToast('Error generating PDF. Please try again.', 'error');
       return null;
     }
   };
@@ -826,7 +835,7 @@ function App() {
 
     // Ensure it's a valid length (10 or 12 digits)
     if (cleanPhone.length < 10) {
-      alert('Invalid phone number for WhatsApp');
+      showToast('Invalid phone number for WhatsApp', 'error');
       return;
     }
 
@@ -995,7 +1004,7 @@ function App() {
       const errorMsg = error?.message || String(error);
       logError('❌ Error:', errorMsg);
       setDebugError(`❌ ERROR: ${errorMsg}`);
-      alert('❌ Error: ' + errorMsg);
+      showToast('Error: ' + errorMsg, 'error');
       return false;
     } finally {
       setIsSubmitting(false);
@@ -1097,7 +1106,7 @@ function App() {
   // Export all active members to a CSV file (opens in Excel / Google Sheets).
   const handleExportCSV = () => {
     const active = getActiveMembers(members);
-    if (active.length === 0) { alert('No members to export.'); return; }
+    if (active.length === 0) { showToast('No members to export.', 'error'); return; }
     const date = new Date().toISOString().split('T')[0];
     downloadFile(`members_${date}.csv`, membersToCSV(active));
   };
@@ -1157,7 +1166,7 @@ function App() {
 
   // Push every existing active member to the configured Google Sheet.
   const handleSyncAllToSheet = async () => {
-    if (!localStorage.getItem('sheetWebhookUrl')) { alert('Save your Google Sheet link first.'); return; }
+    if (!localStorage.getItem('sheetWebhookUrl')) { showToast('Save your Google Sheet link first.', 'error'); return; }
     const active = getActiveMembers(members);
     if (!(await confirmDialog(`Send all ${active.length} members to the Google Sheet?`, { confirmText: 'Send' }))) return;
     for (const m of active) { await syncMemberToSheet(m); await new Promise(res => setTimeout(res, 120)); }
@@ -3222,7 +3231,7 @@ function App() {
                 <button
                   onClick={() => {
                     if (reminderRecipients.length === 0) {
-                      alert('No matching members with a phone number for this reminder type.');
+                      showToast('No matching members with a phone number for this reminder type.', 'error');
                       return;
                     }
                     if (!confirm(`This will open ${reminderRecipients.length} WhatsApp tab(s), one per member. Continue?`)) {
@@ -3279,7 +3288,7 @@ function App() {
                     onClick={() => {
                       const newPassword = (document.getElementById('newAdminPassword') as HTMLInputElement)?.value;
                       if (!newPassword || newPassword.length < 6) {
-                        alert('Password must be at least 6 characters');
+                        showToast('Password must be at least 6 characters', 'error');
                         return;
                       }
                       localStorage.setItem('customAdminPassword', newPassword);
@@ -3383,11 +3392,11 @@ function App() {
                       <button
                         onClick={async () => {
                           if (!editUserPassword.trim()) {
-                            alert('Please enter a new password');
+                            showToast('Please enter a new password', 'error');
                             return;
                           }
                           if (editUserPassword.length < 6) {
-                            alert('Password must be at least 6 characters');
+                            showToast('Password must be at least 6 characters', 'error');
                             return;
                           }
                           try {
@@ -4168,19 +4177,19 @@ function App() {
               <button
                 onClick={() => {
                   if (!formData.tempStreet.trim() || !formData.tempCity.trim() || !formData.tempState.trim() || !formData.tempPincode.trim()) {
-                    alert('Please fill all temporary address fields');
+                    showToast('Please fill all temporary address fields', 'error');
                     return;
                   }
                   if (formData.tempPincode.length !== 6) {
-                    alert('Temporary pincode must be exactly 6 digits');
+                    showToast('Temporary pincode must be exactly 6 digits', 'error');
                     return;
                   }
                   if (!isSamePermanentAddress && (!formData.permStreet.trim() || !formData.permCity.trim() || !formData.permState.trim() || !formData.permPincode.trim())) {
-                    alert('Please fill all permanent address fields');
+                    showToast('Please fill all permanent address fields', 'error');
                     return;
                   }
                   if (!isSamePermanentAddress && formData.permPincode.length !== 6) {
-                    alert('Permanent pincode must be exactly 6 digits');
+                    showToast('Permanent pincode must be exactly 6 digits', 'error');
                     return;
                   }
                   navigate('/admission/step-3');
@@ -4273,17 +4282,17 @@ function App() {
               <button
                 onClick={() => {
                   if (!formData.emergencyContactName.trim()) {
-                    alert('Please enter emergency contact name');
+                    showToast('Please enter emergency contact name', 'error');
                     return;
                   }
                   if (!formData.emergencyContactPhone.trim()) {
-                    alert('Please enter emergency contact phone number');
+                    showToast('Please enter emergency contact phone number', 'error');
                     return;
                   }
                   const emergencyPhoneRegex = /^[0-9]{10}$/;
                   const cleanEmergencyPhone = formData.emergencyContactPhone.replace(/[^0-9]/g, '');
                   if (!emergencyPhoneRegex.test(cleanEmergencyPhone)) {
-                    alert('Please enter a valid 10-digit emergency contact number');
+                    showToast('Please enter a valid 10-digit emergency contact number', 'error');
                     return;
                   }
                   navigate('/admission/step-4');
@@ -4687,19 +4696,19 @@ function App() {
 
                   const agreeCheckbox = document.getElementById('agree') as HTMLInputElement;
                   if (!agreeCheckbox || !agreeCheckbox.checked) {
-                    alert('Please agree to Terms & Conditions');
+                    showToast('Please agree to Terms & Conditions', 'error');
                     setIsSubmitting(false);
                     return;
                   }
 
                   if (paymentMethod === 'upi') {
                     if (!upiScreenshot) {
-                      alert('Please upload UPI payment screenshot');
+                      showToast('Please upload UPI payment screenshot', 'error');
                       setIsSubmitting(false);
                       return;
                     }
                     if (!utrNumber.trim()) {
-                      alert('Please enter UTR/Transaction ID');
+                      showToast('Please enter UTR/Transaction ID', 'error');
                       setIsSubmitting(false);
                       return;
                     }
@@ -4766,7 +4775,7 @@ function App() {
                   navigate('/admission/step-7');
                 } catch (error: any) {
                   logError('❌ Submission error:', error);
-                  alert('❌ Error during submission:\n' + (error?.message || String(error)));
+                  showToast('Error during submission: ' + (error?.message || String(error)), 'error');
                   setIsSubmitting(false);
                 }
               }}
