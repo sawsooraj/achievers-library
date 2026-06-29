@@ -8,7 +8,7 @@ import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { db, auth } from './firebase';
-import { collection, addDoc, getDocs, updateDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, updateDoc, doc, onSnapshot, query, where, setDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import DOMPurify from 'dompurify';
 import './index.css';
@@ -415,6 +415,9 @@ function App() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [editUserPassword, setEditUserPassword] = useState('');
   const [members, setMembers] = useState<any[]>([]);
+  // Public slot counts (no PII) — lets the public form show seat availability
+  // even though reading the members collection now requires admin auth.
+  const [slotStats, setSlotStats] = useState<{ [slot: string]: number } | null>(null);
   const [selectedPaymentForReview, setSelectedPaymentForReview] = useState<any>(null);
   const [paymentReviewNotes, setPaymentReviewNotes] = useState('');
   const [reminderType, setReminderType] = useState<'payment' | 'welcome' | 'renewal'>('renewal');
@@ -604,6 +607,15 @@ function App() {
           if (isMountedRef.current) {
             setMembers(membersList as any[]);
           }
+          // Publish slot counts (numbers only) to a public doc so the public
+          // admission form can show seat availability without read access.
+          if (auth.currentUser) {
+            const occ = (slot: string) => membersList.filter((m: any) => m.slot === slot && m.paymentStatus !== 'rejected').length;
+            setDoc(doc(db, 'stats', 'slots'), {
+              '9am-3pm': occ('9am-3pm'), '3pm-9pm': occ('3pm-9pm'), '9am-9pm': occ('9am-9pm'),
+              updatedAt: new Date().toISOString(),
+            }).catch(() => {});
+          }
         },
         (error) => {
           logError('❌ Firestore listener error:', error);
@@ -623,6 +635,17 @@ function App() {
       logError('Error setting up listener:', error);
       setMembers(safeJSONParse<any[]>(localStorage.getItem('members'), []));
     }
+  }, []);
+
+  // Public slot counts (readable by everyone) for the admission form's seat
+  // availability — works even when the members collection itself is locked.
+  useEffect(() => {
+    try {
+      const unsub = onSnapshot(doc(db, 'stats', 'slots'), (snap) => {
+        if (isMountedRef.current && snap.exists()) setSlotStats(snap.data() as any);
+      }, () => {});
+      return () => { if (typeof unsub === 'function') unsub(); };
+    } catch { /* ignore */ }
   }, []);
 
   // QR Scanner initialization.
@@ -4398,8 +4421,8 @@ function App() {
                 {selectedDayType === 'Half-day' ? (
                   <>
                     {(() => {
-                      const morning = members.filter(m => m.slot === '9am-3pm' && !m.deleted && m.paymentStatus !== 'rejected').length;
-                      const evening = members.filter(m => m.slot === '3pm-9pm' && !m.deleted && m.paymentStatus !== 'rejected').length;
+                      const morning = slotStats ? (slotStats['9am-3pm'] || 0) : members.filter(m => m.slot === '9am-3pm' && !m.deleted && m.paymentStatus !== 'rejected').length;
+                      const evening = slotStats ? (slotStats['3pm-9pm'] || 0) : members.filter(m => m.slot === '3pm-9pm' && !m.deleted && m.paymentStatus !== 'rejected').length;
                       const morningAvail = Math.max(0, SEATS_PER_SLOT - morning);
                       const eveningAvail = Math.max(0, SEATS_PER_SLOT - evening);
                       return (
@@ -4438,7 +4461,7 @@ function App() {
                   </>
                 ) : (
                   (() => {
-                    const fullday = members.filter(m => m.slot === '9am-9pm' && !m.deleted && m.paymentStatus !== 'rejected').length;
+                    const fullday = slotStats ? (slotStats['9am-9pm'] || 0) : members.filter(m => m.slot === '9am-9pm' && !m.deleted && m.paymentStatus !== 'rejected').length;
                     const fulldayAvail = Math.max(0, SEATS_PER_SLOT - fullday);
                     return (
                       <button
