@@ -1206,6 +1206,13 @@ function App() {
     }
   };
 
+  // Close the member detail modal AND clear ?detail= from the URL, otherwise the
+  // same member can't be reopened (navigating to the same URL is a no-op).
+  const closeDetail = () => {
+    setSelectedMemberDetail(null);
+    if (location.search) navigate(location.pathname, { replace: true });
+  };
+
   const verifyPaymentQuick = async (member: any) => {
     if (paymentVerifyDebounceRef.current[member.id]) return;
     if (!member.amount || member.amount <= 0) { showToast('Set a valid amount before verifying', 'error'); return; }
@@ -1615,10 +1622,32 @@ function App() {
               </div>
 
               {/* Section 3: Renewals Due Soon */}
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h2 className="text-xl font-bold text-blue-700 mb-4">🔄 Renewals Coming Up (Upcoming Members)</h2>
-                <p className="text-gray-500 text-center py-4">Send renewal reminders when memberships are expiring soon</p>
-              </div>
+              {(() => {
+                const renewals = [...memberFilters.expired, ...memberFilters.expiringSoon];
+                return (
+                  <div className="bg-white rounded-lg shadow p-6 mb-6">
+                    <h2 className="text-xl font-bold text-blue-700 mb-4">🔄 Renewals Coming Up ({renewals.length})</h2>
+                    {renewals.length === 0 ? (
+                      <p className="text-gray-500 text-center py-4">No memberships expiring in the next 7 days 🎉</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {renewals.map(member => {
+                          const d = memberFilters.daysToExpiry(member);
+                          return (
+                            <div key={member.id} className="flex items-center justify-between gap-3 border-2 border-blue-100 rounded-lg p-3 bg-blue-50">
+                              <div className="min-w-0">
+                                <p className="font-bold">{member.fullName}</p>
+                                <p className="text-xs text-gray-600">{member.plan} · 📞 {member.phone} · {d !== null && d < 0 ? `🔴 Expired ${-d}d ago` : `⏰ ${d}d left`}</p>
+                              </div>
+                              <button onClick={() => sendRenewalReminder(member)} className="px-4 py-2 bg-amber-500 text-white font-bold rounded-lg hover:bg-amber-600 active:scale-95 transition text-sm whitespace-nowrap">⏰ Remind</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
             </div>
           </div>
@@ -2029,7 +2058,7 @@ function App() {
                       <p className="text-sm text-gray-500 mt-1">ID: {selectedMemberDetail.id || 'N/A'}</p>
                     </div>
                     <button
-                      onClick={() => setSelectedMemberDetail(null)}
+                      onClick={() => closeDetail()}
                       className="text-3xl text-gray-400 hover:text-gray-600"
                     >
                       ×
@@ -2322,7 +2351,7 @@ function App() {
                       📥 Download PDF
                     </button>
                     <button
-                      onClick={() => setSelectedMemberDetail(null)}
+                      onClick={() => closeDetail()}
                       className="flex-1 px-4 py-3 bg-gray-600 text-white font-bold rounded-lg hover:bg-gray-700"
                     >
                       Close
@@ -3047,7 +3076,7 @@ function App() {
                 <div className="flex items-start justify-between mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">{selectedMemberDetail.fullName}</h2>
                   <button
-                    onClick={() => setSelectedMemberDetail(null)}
+                    onClick={() => closeDetail()}
                     className="text-3xl text-gray-400 hover:text-gray-600"
                   >
                     ×
@@ -3111,7 +3140,7 @@ function App() {
                 </div>
 
                 <button
-                  onClick={() => setSelectedMemberDetail(null)}
+                  onClick={() => closeDetail()}
                   className="w-full mt-6 px-4 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
                 >
                   Close
