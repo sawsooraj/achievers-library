@@ -376,7 +376,6 @@ function App() {
   const [utrNumber, setUtrNumber] = useState('');
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [pdfBookingId, setPdfBookingId] = useState<string | null>(null);
-  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
 
   // Admin States
   const [isAdmin, setIsAdmin] = useState(() => {
@@ -1923,40 +1922,6 @@ function App() {
                     <p className="text-xs text-gray-500 mt-1">Tip: name a tab “Members” in your sheet (optional).</p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {selectedMembers.size > 0 && (
-              <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg flex justify-between items-center">
-                <span className="font-bold text-blue-700">{selectedMembers.size} member(s) selected</span>
-                <button
-                  onClick={async () => {
-                    if (confirm(`🗑️ Delete ${selectedMembers.size} members? This cannot be undone!`)) {
-                      try {
-                        let deletedCount = 0;
-                        for (const memberId of selectedMembers) {
-                          const member = members.find(m => m.id === memberId);
-                          if (member?.docId) {
-                            await updateDoc(doc(db, 'members', member.docId), {
-                              deleted: true,
-                              deletedAt: new Date().toISOString(),
-                              deletedBy: 'admin'
-                            });
-                            deletedCount++;
-                          }
-                        }
-                        setSelectedMembers(new Set());
-                        showToast(`${deletedCount} member(s) deleted successfully`, "success");
-                      } catch (error) {
-                        logError('Error bulk deleting members:', error);
-                        showToast('Error deleting members. Please try again.', "error");
-                      }
-                    }
-                  }}
-                  className="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
-                >
-                  🗑️ Delete Selected
-                </button>
               </div>
             )}
 
