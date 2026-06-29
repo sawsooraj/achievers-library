@@ -9,12 +9,16 @@ import QRCode from 'qrcode';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { db, auth } from './firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, onSnapshot, query, where, setDoc } from 'firebase/firestore';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import DOMPurify from 'dompurify';
 import './index.css';
 
 // Configuration
 const ADMIN_PASSWORDS = [import.meta.env.VITE_ADMIN_PASSWORD || 'tempAdmin#2026!Secure'];
+// Full-access admins (can delete). Any other signed-in user is "staff" and can
+// do everything EXCEPT delete members. Configurable via VITE_ADMIN_EMAILS (csv).
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || 'theachieverslibrary0@gmail.com')
+  .split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean);
 const TOTAL_SEATS = 69;
 const SEATS_PER_SLOT = 23;
 const SLOTS = ['9am-3pm', '3pm-9pm', '9am-9pm'] as const;
@@ -390,6 +394,21 @@ function App() {
     const saved = localStorage.getItem('isAdmin');
     return saved === 'true';
   });
+  // 'admin' = full access (delete allowed); 'staff' = everything except delete.
+  const [userRole, setUserRole] = useState<'admin' | 'staff'>(() => (localStorage.getItem('userRole') as any) || 'admin');
+  const isStaff = userRole === 'staff';
+
+  // Keep the role in sync with the signed-in Firebase user (survives reloads).
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user?.email) {
+        const role = ADMIN_EMAILS.includes(user.email.toLowerCase()) ? 'admin' : 'staff';
+        setUserRole(role);
+        localStorage.setItem('userRole', role);
+      }
+    });
+    return () => unsub();
+  }, []);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
@@ -964,6 +983,9 @@ function App() {
     if (email) {
       try {
         await signInWithEmailAndPassword(auth, email, pwd);
+        const role = ADMIN_EMAILS.includes(email.toLowerCase()) ? 'admin' : 'staff';
+        setUserRole(role);
+        localStorage.setItem('userRole', role);
         setAdminEmail('');
         grantAdmin();
       } catch (err: any) {
@@ -981,7 +1003,7 @@ function App() {
     const customAdminPassword = localStorage.getItem('customAdminPassword');
     const masterPasswords = customAdminPassword ? [customAdminPassword] : [...ADMIN_PASSWORDS];
     const userPasswords = users.map((u: any) => u.password).filter((p: string) => p && p.length >= 6);
-    if ([...masterPasswords, ...userPasswords].includes(pwd)) grantAdmin();
+    if ([...masterPasswords, ...userPasswords].includes(pwd)) { setUserRole('admin'); localStorage.setItem('userRole', 'admin'); grantAdmin(); }
     else rejectLogin('Invalid password!');
   };
 
@@ -1461,6 +1483,9 @@ function App() {
                   <span className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></span>
                   <span className="text-xs font-bold text-green-700">Live v2.0</span>
                 </div>
+                <span className={`text-xs font-bold px-3 py-1 rounded-full ${isStaff ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {isStaff ? '👤 Staff' : '🔑 Admin'}
+                </span>
               </div>
               <button
                 onClick={() => { signOut(auth).catch(() => {}); setIsAdmin(false); setAdminPage('dashboard'); navigate('/'); }}
@@ -2027,19 +2052,21 @@ function App() {
                         <button onClick={() => sendWelcome(member)} title="Send WhatsApp message" className="px-3 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600 active:scale-95 transition">💬 WhatsApp</button>
                         <button onClick={() => editMemberNote(member)} title="Add/edit a private note" className="px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm font-bold hover:bg-yellow-200 active:scale-95 transition">📝 Note</button>
                         <button onClick={() => { setEditingMember(member); setEditFormData({ ...member }); }} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200 active:scale-95 transition">✏️ Edit</button>
-                        <button
-                          onClick={async () => {
-                            if (!(await confirmDialog(`Delete ${member.fullName}? This cannot be undone.`, { danger: true, confirmText: 'Delete' }))) return;
-                            try {
-                              await updateDoc(doc(db, 'members', member.docId), { deleted: true, deletedAt: new Date().toISOString(), deletedBy: 'admin' });
-                              showToast(`${member.fullName} deleted`);
-                            } catch (error) {
-                              logError('Error deleting member:', error);
-                              showToast('Could not delete. Please try again.', 'error');
-                            }
-                          }}
-                          className="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 active:scale-95 transition"
-                        >🗑️</button>
+                        {!isStaff && (
+                          <button
+                            onClick={async () => {
+                              if (!(await confirmDialog(`Delete ${member.fullName}? This cannot be undone.`, { danger: true, confirmText: 'Delete' }))) return;
+                              try {
+                                await updateDoc(doc(db, 'members', member.docId), { deleted: true, deletedAt: new Date().toISOString(), deletedBy: 'admin' });
+                                showToast(`${member.fullName} deleted`);
+                              } catch (error) {
+                                logError('Error deleting member:', error);
+                                showToast('Could not delete. Please try again.', 'error');
+                              }
+                            }}
+                            className="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 active:scale-95 transition"
+                          >🗑️</button>
+                        )}
                       </div>
                     </div>
                   );
