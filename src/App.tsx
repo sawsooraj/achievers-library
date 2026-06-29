@@ -308,6 +308,14 @@ const safeJSONParse = <T,>(raw: string | null, fallback: T): T => {
   }
 };
 
+// Today's date in the user's LOCAL timezone as YYYY-MM-DD. Using toISOString()
+// here returns the UTC date, which is "yesterday" for IST (UTC+5:30) users
+// between midnight and 5:30 AM — making start dates / min / max off by a day.
+const todayLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 // FIX #213: Retry mechanism for failed async operations
 const retryOperation = async (operation: () => Promise<any>, maxRetries = 3, delayMs = 500) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -364,7 +372,7 @@ function App() {
   const [agreeTerms, setAgreeTerms] = useState(false); // FIX #102: Controlled checkbox state
   const [selectedPlan, setSelectedPlan] = useState('');
   const [selectedDayType, setSelectedDayType] = useState('');
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => todayLocal());
   const [selectedSlot, setSelectedSlot] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('upi');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -862,7 +870,7 @@ function App() {
     setSelectedDayType('');
     setSelectedSlot('');
     setPaymentMethod('upi');
-    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setSelectedDate(todayLocal());
     setUpiScreenshot(null);
     setUtrNumber('');
     setAgreeTerms(false);
@@ -1106,7 +1114,7 @@ function App() {
   const handleExportCSV = () => {
     const active = getActiveMembers(members);
     if (active.length === 0) { showToast('No members to export.', 'error'); return; }
-    const date = new Date().toISOString().split('T')[0];
+    const date = todayLocal();
     downloadFile(`members_${date}.csv`, membersToCSV(active));
   };
 
@@ -2969,7 +2977,7 @@ function App() {
           <div className="max-w-7xl mx-auto p-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {slots.map((slot) => {
-                const slotMembers = members.filter(m => m.slot === slot.name && !m.deletedAt);
+                const slotMembers = members.filter(m => m.slot === slot.name && !m.deletedAt && m.paymentStatus !== 'rejected');
                 const availableSeats = slot.capacity - slotMembers.length;
 
                 return (
@@ -3863,7 +3871,7 @@ function App() {
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
                   min="1950-01-01"
-                  max={new Date().toISOString().split('T')[0]}
+                  max={todayLocal()}
                   className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none ${formErrors.dateOfBirth ? 'border-red-600 focus:border-red-600 bg-red-50' : 'border-gray-300 focus:border-blue-500'}`}
                 />
                 {formErrors.dateOfBirth && <p className="text-red-600 text-sm mt-1">⚠️ {formErrors.dateOfBirth}</p>}
@@ -4388,8 +4396,8 @@ function App() {
                 {selectedDayType === 'Half-day' ? (
                   <>
                     {(() => {
-                      const morning = members.filter(m => m.slot === '9am-3pm' && !m.deleted).length;
-                      const evening = members.filter(m => m.slot === '3pm-9pm' && !m.deleted).length;
+                      const morning = members.filter(m => m.slot === '9am-3pm' && !m.deleted && m.paymentStatus !== 'rejected').length;
+                      const evening = members.filter(m => m.slot === '3pm-9pm' && !m.deleted && m.paymentStatus !== 'rejected').length;
                       const morningAvail = Math.max(0, SEATS_PER_SLOT - morning);
                       const eveningAvail = Math.max(0, SEATS_PER_SLOT - evening);
                       return (
@@ -4428,7 +4436,7 @@ function App() {
                   </>
                 ) : (
                   (() => {
-                    const fullday = members.filter(m => m.slot === '9am-9pm' && !m.deleted).length;
+                    const fullday = members.filter(m => m.slot === '9am-9pm' && !m.deleted && m.paymentStatus !== 'rejected').length;
                     const fulldayAvail = Math.max(0, SEATS_PER_SLOT - fullday);
                     return (
                       <button
@@ -4459,7 +4467,7 @@ function App() {
                   value={selectedDate}
                   onChange={e => setSelectedDate(e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none text-base"
-                  min={new Date().toISOString().split('T')[0]}
+                  min={todayLocal()}
                 />
               </div>
             </div>
