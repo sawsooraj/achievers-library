@@ -785,19 +785,6 @@ function App() {
       }
       y += 10;
 
-      // QR Code
-      doc.setFont('', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(25, 118, 210);
-      doc.text('SHOW AT RECEPTION', 15, y);
-
-      y += 10;
-      const qrCanvas = await QRCode.toCanvas(bookingId, { width: 100 });
-      const qrImage = qrCanvas.toDataURL('image/png');
-      doc.addImage(qrImage, 'PNG', pageWidth / 2 - 25, y, 50, 50);
-
-      y += 55;
-
       // Footer
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.5);
@@ -2238,19 +2225,6 @@ function App() {
                       </div>
                     </div>
 
-                    {/* 8. QR CODE */}
-                    <div className="bg-blue-50 p-4 rounded-lg text-center border-l-4 border-blue-500">
-                      <p className="text-sm font-bold text-blue-900 mb-3">📱 Member QR Code</p>
-                      <div className="bg-white p-3 rounded inline-block border-2 border-blue-200">
-                        <div className="w-32 h-32 bg-gradient-to-br from-blue-100 to-blue-200 rounded flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="text-3xl">📱</div>
-                            <div className="text-xs text-gray-600 mt-1">QR Code</div>
-                            <div className="text-xs font-bold">{selectedMemberDetail.id}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                   <div className="flex gap-2 mt-6 pt-4 border-t sticky bottom-0 bg-white">
@@ -4838,18 +4812,10 @@ function App() {
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg text-center">
-              <div className="font-bold mb-3">Your QR Code</div>
-              <div className="bg-white p-4 rounded inline-block border-2 border-blue-200">
-                <div className="w-48 h-48 bg-gradient-to-br from-blue-100 to-blue-200 rounded flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-4xl">📱</div>
-                    <div className="text-xs text-gray-600 mt-2">QR Code</div>
-                    <div className="text-xs font-bold">{bookingId}</div>
-                  </div>
-                </div>
-              </div>
-              <div className="text-sm text-gray-600 mt-3">Show this QR at reception</div>
+            <div className="bg-blue-50 border border-blue-200 p-5 rounded-lg text-center">
+              <div className="text-sm text-gray-600 mb-1">Your Membership ID</div>
+              <div className="text-3xl font-bold text-blue-700 tracking-wide">{bookingId}</div>
+              <div className="text-xs text-gray-500 mt-2">Keep this ID safe — use it for any query at the library.</div>
             </div>
 
             <div className="space-y-2">
